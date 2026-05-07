@@ -47,7 +47,7 @@ func TestRunCopyWithMTimeFallback(t *testing.T) {
 		t.Fatalf("stats = %+v, want Discovered=2 Processed=2", stats)
 	}
 	for _, name := range []string{"a.jpg", "b.jpeg"} {
-		want := filepath.Join(dst, "2023", "03", "15", name)
+		want := filepath.Join(dst, "2023", "2023_03", "2023_03_15", name)
 		if _, err := os.Stat(want); err != nil {
 			t.Errorf("expected file at %s: %v", want, err)
 		}

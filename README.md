@@ -1,7 +1,7 @@
 # phomv
 
 `phomv` (photo move) is a high-performance CLI utility written in Go that
-organizes photo directories into a `YYYY/MM/DD` hierarchy based on EXIF
+organizes photo directories into a `YYYY/YYYY_MM/YYYY_MM_DD` hierarchy based on EXIF
 metadata. It is designed to be fast, safe, and decoupled enough that the same
 core engine can later back a Wails or Fyne GUI.
 

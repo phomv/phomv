@@ -9,7 +9,7 @@ import (
 func TestDestinationFor(t *testing.T) {
 	when := time.Date(2024, 7, 4, 12, 0, 0, 0, time.UTC)
 	got := DestinationFor("/dest", "/src/IMG_1234.jpg", when)
-	want := filepath.Join("/dest", "2024", "07", "04", "IMG_1234.jpg")
+	want := filepath.Join("/dest", "2024", "2024_07", "2024_07_04", "IMG_1234.jpg")
 	if got != want {
 		t.Fatalf("DestinationFor = %q, want %q", got, want)
 	}
