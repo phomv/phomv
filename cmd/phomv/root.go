@@ -16,9 +16,9 @@ func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "phomv",
 		Short: "Organize photo libraries by EXIF date",
-		Long: `phomv organizes photos into a YYYY/MM/DD hierarchy based on EXIF
-metadata, with file mtime as a fallback. Operations run concurrently and
-support a dry-run mode for safe previews.`,
+		Long: `phomv organizes photos into a YYYY/YYYY_MM/YYYY_MM_DD hierarchy based
+on EXIF metadata, with file mtime as a fallback. Operations run concurrently
+and support a dry-run mode for safe previews.`,
 		SilenceUsage: true,
 	}
 
