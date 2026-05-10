@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="phomv logo" width="480">
+</p>
+
 # phomv
 
 `phomv` (photo move) is a high-performance CLI utility written in Go that
