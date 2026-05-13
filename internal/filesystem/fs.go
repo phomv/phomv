@@ -125,11 +125,11 @@ func copyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	tmp := dst + ".phomv-tmp"
-	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	out, err := os.CreateTemp(filepath.Dir(dst), filepath.Base(dst)+".*.phomv-tmp")
 	if err != nil {
 		return err
 	}
+	tmp := out.Name()
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
 		os.Remove(tmp)
