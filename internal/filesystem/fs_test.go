@@ -107,6 +107,39 @@ func TestApplyMove(t *testing.T) {
 	}
 }
 
+func TestCopyFileWithExistingTemp(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.jpg")
+	writeFile(t, src, "new-data")
+	dst := filepath.Join(dir, "dst.jpg")
+
+	// Pre-create what used to be the predictable temp file
+	oldPredictableTemp := dst + ".phomv-tmp"
+	writeFile(t, oldPredictableTemp, "old-garbage")
+
+	if err := copyFile(src, dst); err != nil {
+		t.Fatalf("copyFile failed: %v", err)
+	}
+
+	b, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "new-data" {
+		t.Fatalf("got %q, want %q", b, "new-data")
+	}
+
+	// The old predictable temp file should still exist (or at least not have been used/overwritten)
+	// Actually, the new code uses os.CreateTemp which shouldn't touch this file.
+	oldContent, err := os.ReadFile(oldPredictableTemp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(oldContent) != "old-garbage" {
+		t.Fatal("old predictable temp file was overwritten")
+	}
+}
+
 func TestCleanupEmptyDirs(t *testing.T) {
 	root := t.TempDir()
 	empty := filepath.Join(root, "empty", "deeper")
