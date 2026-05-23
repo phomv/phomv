@@ -30,12 +30,24 @@ func (o Operation) String() string {
 // ResolveCollision returns a non-existent destination path. If desired exists,
 // it appends incremental suffixes (_1, _2, ...) before the extension.
 //
-// If reserve is true, it atomically creates an empty file at the destination
-// path to prevent Time-of-Check to Time-of-Use (TOCTOU) race conditions.
+// It atomically creates an empty file at the destination path to prevent
+// Time-of-Check to Time-of-Use (TOCTOU) race conditions.
 //
 // If the existing file at desired is byte-identical to src, ResolveCollision
 // returns ("", true, nil) to signal the caller can skip the operation.
-func ResolveCollision(src, desired string, reserve bool) (string, bool, error) {
+func ResolveCollision(src, desired string) (string, bool, error) {
+	return resolveCollision(src, desired, true)
+}
+
+// ResolveCollisionDryRun simulates collision resolution without creating any files.
+// It is intended for use in dry-run mode where disk modifications are prohibited.
+func ResolveCollisionDryRun(src, desired string) (string, bool, error) {
+	return resolveCollision(src, desired, false)
+}
+
+// resolveCollision performs the collision resolution logic.
+// If reserve is true, it reserves the path by atomically creating an empty file.
+func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
 	checkPath := func(p string) (bool, error) {
 		if !reserve {
 			if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
@@ -46,16 +58,28 @@ func ResolveCollision(src, desired string, reserve bool) (string, bool, error) {
 			return false, nil // File exists
 		}
 
-		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-			return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
-		}
-
 		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
 		if err != nil {
 			if os.IsExist(err) || errors.Is(err, os.ErrExist) {
 				return false, nil // File exists
 			}
-			return false, err
+			// if MkdirAll wasn't called yet and parent dir doesn't exist, we will fail here.
+			// Let's create the parent directory just in time if needed.
+			if errors.Is(err, os.ErrNotExist) {
+				if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+					return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
+				}
+				// Retry opening
+				f, err = os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
+				if err != nil {
+					if os.IsExist(err) || errors.Is(err, os.ErrExist) {
+						return false, nil // File exists
+					}
+					return false, err
+				}
+			} else {
+				return false, err
+			}
 		}
 		f.Close()
 		return true, nil // Successfully reserved

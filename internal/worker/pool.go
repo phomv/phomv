@@ -146,7 +146,13 @@ func process(cfg Config, job Job) Result {
 		res.Source = pt.Source
 	}
 
-	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst, !cfg.DryRun)
+	var finalDst string
+	var skip bool
+	if cfg.DryRun {
+		finalDst, skip, err = filesystem.ResolveCollisionDryRun(job.Path, dst)
+	} else {
+		finalDst, skip, err = filesystem.ResolveCollision(job.Path, dst)
+	}
 	if err != nil {
 		res.Status = StatusFailed
 		res.Err = err
@@ -172,7 +178,6 @@ func process(cfg Config, job Job) Result {
 	}
 
 	if err := filesystem.Apply(cfg.Operation, job.Path, finalDst); err != nil {
-		// Clean up the reserved empty file if Apply fails
 		os.Remove(finalDst)
 		res.Status = StatusFailed
 		res.Err = err
