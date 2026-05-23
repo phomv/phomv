@@ -130,24 +130,29 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	tmp := out.Name()
+	removeTmp := true
+	defer func() {
+		if removeTmp {
+			os.Remove(tmp)
+		}
+	}()
+
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
-		os.Remove(tmp)
 		return err
 	}
 	if err := out.Sync(); err != nil {
 		out.Close()
-		os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
-		os.Remove(tmp)
 		return err
 	}
 	if info, err := os.Stat(src); err == nil {
 		_ = os.Chmod(tmp, info.Mode())
 		_ = os.Chtimes(tmp, info.ModTime(), info.ModTime())
 	}
+	removeTmp = false
 	return os.Rename(tmp, dst)
 }
 
