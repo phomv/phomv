@@ -39,8 +39,10 @@ func ResolveCollision(src, desired string) (string, bool, error) {
 	return resolveCollision(src, desired, true)
 }
 
-// resolveCollision performs the collision resolution logic.
-// If reserve is true, it reserves the path by atomically creating an empty file.
+func ResolveCollisionReadOnly(src, desired string) (string, bool, error) {
+	return resolveCollision(src, desired, false)
+}
+
 func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
 	checkPath := func(p string) (bool, error) {
 		if !reserve {
@@ -49,25 +51,22 @@ func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
 			} else if err != nil {
 				return false, err
 			}
-			return false, nil // File exists
+			return false, nil
 		}
 
 		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
 		if err != nil {
 			if os.IsExist(err) || errors.Is(err, os.ErrExist) {
-				return false, nil // File exists
+				return false, nil
 			}
-			// if MkdirAll wasn't called yet and parent dir doesn't exist, we will fail here.
-			// Let's create the parent directory just in time if needed.
 			if errors.Is(err, os.ErrNotExist) {
 				if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 					return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
 				}
-				// Retry opening
 				f, err = os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
 				if err != nil {
 					if os.IsExist(err) || errors.Is(err, os.ErrExist) {
-						return false, nil // File exists
+						return false, nil
 					}
 					return false, err
 				}
@@ -76,7 +75,7 @@ func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
 			}
 		}
 		f.Close()
-		return true, nil // Successfully reserved
+		return true, nil
 	}
 
 	available, err := checkPath(desired)
