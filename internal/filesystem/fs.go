@@ -30,13 +30,43 @@ func (o Operation) String() string {
 // ResolveCollision returns a non-existent destination path. If desired exists,
 // it appends incremental suffixes (_1, _2, ...) before the extension.
 //
+// If reserve is true, it atomically creates an empty file at the destination
+// path to prevent Time-of-Check to Time-of-Use (TOCTOU) race conditions.
+//
 // If the existing file at desired is byte-identical to src, ResolveCollision
 // returns ("", true, nil) to signal the caller can skip the operation.
-func ResolveCollision(src, desired string) (string, bool, error) {
-	if _, err := os.Stat(desired); errors.Is(err, os.ErrNotExist) {
-		return desired, false, nil
-	} else if err != nil {
+func ResolveCollision(src, desired string, reserve bool) (string, bool, error) {
+	checkPath := func(p string) (bool, error) {
+		if !reserve {
+			if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
+				return true, nil
+			} else if err != nil {
+				return false, err
+			}
+			return false, nil // File exists
+		}
+
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
+		}
+
+		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
+		if err != nil {
+			if os.IsExist(err) || errors.Is(err, os.ErrExist) {
+				return false, nil // File exists
+			}
+			return false, err
+		}
+		f.Close()
+		return true, nil // Successfully reserved
+	}
+
+	available, err := checkPath(desired)
+	if err != nil {
 		return "", false, err
+	}
+	if available {
+		return desired, false, nil
 	}
 
 	same, err := sameContent(src, desired)
@@ -51,10 +81,12 @@ func ResolveCollision(src, desired string) (string, bool, error) {
 	stem := strings.TrimSuffix(desired, ext)
 	for i := 1; i < 10000; i++ {
 		candidate := fmt.Sprintf("%s_%d%s", stem, i, ext)
-		if _, err := os.Stat(candidate); errors.Is(err, os.ErrNotExist) {
-			return candidate, false, nil
-		} else if err != nil {
+		available, err := checkPath(candidate)
+		if err != nil {
 			return "", false, err
+		}
+		if available {
+			return candidate, false, nil
 		}
 	}
 	return "", false, fmt.Errorf("could not resolve collision for %s", desired)

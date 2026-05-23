@@ -33,12 +33,12 @@ const (
 
 // Result is the outcome of processing one Job.
 type Result struct {
-	Src     string
-	Dst     string
-	Status  Status
-	Source  processor.TimeSource
-	DryRun  bool
-	Err     error
+	Src    string
+	Dst    string
+	Status Status
+	Source processor.TimeSource
+	DryRun bool
+	Err    error
 }
 
 // Config controls a Run invocation.
@@ -146,7 +146,7 @@ func process(cfg Config, job Job) Result {
 		res.Source = pt.Source
 	}
 
-	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst)
+	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst, !cfg.DryRun)
 	if err != nil {
 		res.Status = StatusFailed
 		res.Err = err
@@ -172,6 +172,8 @@ func process(cfg Config, job Job) Result {
 	}
 
 	if err := filesystem.Apply(cfg.Operation, job.Path, finalDst); err != nil {
+		// Clean up the reserved empty file if Apply fails
+		os.Remove(finalDst)
 		res.Status = StatusFailed
 		res.Err = err
 		return res
