@@ -39,12 +39,6 @@ func ResolveCollision(src, desired string) (string, bool, error) {
 	return resolveCollision(src, desired, true)
 }
 
-// ResolveCollisionDryRun simulates collision resolution without creating any files.
-// It is intended for use in dry-run mode where disk modifications are prohibited.
-func ResolveCollisionDryRun(src, desired string) (string, bool, error) {
-	return resolveCollision(src, desired, false)
-}
-
 // resolveCollision performs the collision resolution logic.
 // If reserve is true, it reserves the path by atomically creating an empty file.
 func resolveCollision(src, desired string, reserve bool) (string, bool, error) {

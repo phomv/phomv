@@ -146,13 +146,7 @@ func process(cfg Config, job Job) Result {
 		res.Source = pt.Source
 	}
 
-	var finalDst string
-	var skip bool
-	if cfg.DryRun {
-		finalDst, skip, err = filesystem.ResolveCollisionDryRun(job.Path, dst)
-	} else {
-		finalDst, skip, err = filesystem.ResolveCollision(job.Path, dst)
-	}
+	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst)
 	if err != nil {
 		res.Status = StatusFailed
 		res.Err = err
@@ -171,6 +165,16 @@ func process(cfg Config, job Job) Result {
 
 	res.Dst = finalDst
 	if cfg.DryRun {
+		os.Remove(finalDst)
+		// Try to clean up empty directories created by MkdirAll during path reservation in dry-run
+		dir := filepath.Dir(finalDst)
+		for len(dir) >= len(cfg.Destination) && dir != "/" && dir != "." && dir != cfg.Destination {
+			if err := os.Remove(dir); err != nil {
+				break
+			}
+			dir = filepath.Dir(dir)
+		}
+
 		if res.Status == 0 {
 			res.Status = StatusOK
 		}

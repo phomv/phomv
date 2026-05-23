@@ -21,7 +21,7 @@ func TestResolveCollisionNoConflict(t *testing.T) {
 	src := filepath.Join(dir, "a.jpg")
 	writeFile(t, src, "hello")
 	dst := filepath.Join(dir, "out", "a.jpg")
-	got, skip, err := ResolveCollisionDryRun(src, dst)
+	got, skip, err := ResolveCollision(src, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestResolveCollisionIdenticalSkips(t *testing.T) {
 	dst := filepath.Join(dir, "out", "a.jpg")
 	writeFile(t, src, "same-bytes")
 	writeFile(t, dst, "same-bytes")
-	got, skip, err := ResolveCollisionDryRun(src, dst)
+	got, skip, err := ResolveCollision(src, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestResolveCollisionDifferentSuffixes(t *testing.T) {
 	dst := filepath.Join(dir, "out", "a.jpg")
 	writeFile(t, src, "new-content")
 	writeFile(t, dst, "existing-content")
-	got, skip, err := ResolveCollisionDryRun(src, dst)
+	got, skip, err := ResolveCollision(src, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
