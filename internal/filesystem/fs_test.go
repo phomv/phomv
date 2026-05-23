@@ -159,3 +159,30 @@ func TestCleanupEmptyDirs(t *testing.T) {
 		t.Fatal("non-empty dir should be preserved")
 	}
 }
+
+func TestApplyDirectoryPermissions(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.jpg")
+	writeFile(t, src, "data")
+
+	// Use a nested directory structure that does not exist yet
+	dstDir := filepath.Join(dir, "out", "nested")
+	dst := filepath.Join(dstDir, "a.jpg")
+
+	if err := Apply(OpCopy, src, dst); err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := os.Stat(dstDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Note: os.MkdirAll permissions interact with umask.
+	// We expect the permission to be no more permissive than 0700.
+	// In most cases with standard umask, it will be 0700.
+	perm := info.Mode().Perm()
+	if perm&0o077 != 0 {
+		t.Fatalf("directory permissions are too permissive: got %O, want no group/other access (like 0700)", perm)
+	}
+}

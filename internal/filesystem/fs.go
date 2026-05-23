@@ -62,7 +62,7 @@ func ResolveCollision(src, desired string) (string, bool, error) {
 
 // Apply executes op (copy or move) from src to dst, creating parent dirs.
 func Apply(op Operation, src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
 	}
 	switch op {
