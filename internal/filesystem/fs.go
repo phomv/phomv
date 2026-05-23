@@ -130,18 +130,17 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	tmp := out.Name()
+	defer os.Remove(tmp)
+
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
-		os.Remove(tmp)
 		return err
 	}
 	if err := out.Sync(); err != nil {
 		out.Close()
-		os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
-		os.Remove(tmp)
 		return err
 	}
 	if info, err := os.Stat(src); err == nil {
