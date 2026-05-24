@@ -33,12 +33,12 @@ const (
 
 // Result is the outcome of processing one Job.
 type Result struct {
-	Src     string
-	Dst     string
-	Status  Status
-	Source  processor.TimeSource
-	DryRun  bool
-	Err     error
+	Src    string
+	Dst    string
+	Status Status
+	Source processor.TimeSource
+	DryRun bool
+	Err    error
 }
 
 // Config controls a Run invocation.
@@ -146,6 +146,25 @@ func process(cfg Config, job Job) Result {
 		res.Source = pt.Source
 	}
 
+	if cfg.DryRun {
+		finalDst, skip, err := filesystem.ResolveCollisionReadOnly(job.Path, dst)
+		if err != nil {
+			res.Status = StatusFailed
+			res.Err = err
+			return res
+		}
+		if skip {
+			res.Dst = dst
+			res.Status = StatusSkippedDuplicate
+			return res
+		}
+		res.Dst = finalDst
+		if res.Status == 0 {
+			res.Status = StatusOK
+		}
+		return res
+	}
+
 	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst)
 	if err != nil {
 		res.Status = StatusFailed
@@ -155,7 +174,7 @@ func process(cfg Config, job Job) Result {
 	if skip {
 		res.Dst = dst
 		res.Status = StatusSkippedDuplicate
-		if cfg.Operation == filesystem.OpMove && !cfg.DryRun {
+		if cfg.Operation == filesystem.OpMove {
 			if rmErr := os.Remove(job.Path); rmErr != nil {
 				res.Err = rmErr
 			}
@@ -164,14 +183,9 @@ func process(cfg Config, job Job) Result {
 	}
 
 	res.Dst = finalDst
-	if cfg.DryRun {
-		if res.Status == 0 {
-			res.Status = StatusOK
-		}
-		return res
-	}
 
 	if err := filesystem.Apply(cfg.Operation, job.Path, finalDst); err != nil {
+		os.Remove(finalDst)
 		res.Status = StatusFailed
 		res.Err = err
 		return res
