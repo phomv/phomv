@@ -31,7 +31,7 @@ make install     # installs into $GOBIN
 make release     # cross-compiles to ./dist for linux/macOS/windows
 ```
 
-Requires Go 1.21+.
+Requires Go 1.24+.
 
 ## Usage
 
@@ -68,7 +68,6 @@ phomv/
 │   ├── processor/      # EXIF extraction + destination path formatting
 │   ├── worker/         # Discovery + worker pool pipeline
 │   └── filesystem/     # Copy/move/collision/idempotency primitives
-├── pkg/                # Reserved for publicly exportable helpers
 ├── Makefile            # Build, test, cross-compile
 └── go.mod
 ```
