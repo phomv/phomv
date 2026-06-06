@@ -25,14 +25,14 @@ func TestUnknownDestination(t *testing.T) {
 
 func TestIsSupported(t *testing.T) {
 	cases := map[string]bool{
-		"a.jpg":         true,
-		"a.JPG":         true,
-		"b.jpeg":        true,
-		"c.HEIC":        true,
-		"d.cr2":         true,
-		"notes.txt":     false,
-		"video.mp4":     false,
-		"no-extension":  false,
+		"a.jpg":        true,
+		"a.JPG":        true,
+		"b.jpeg":       true,
+		"c.HEIC":       true,
+		"d.cr2":        true,
+		"notes.txt":    false,
+		"video.mp4":    false,
+		"no-extension": false,
 	}
 	for name, want := range cases {
 		if got := IsSupported(name); got != want {
