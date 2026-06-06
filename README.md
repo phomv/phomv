@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="phomv logo" width="480">
+  <img src="docs/phomv-lockup.png" alt="phomv — organize photos, fast" width="480">
 </p>
 
 # phomv
