@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chinny/phomv/internal/filesystem"
+	"github.com/phomv/phomv/internal/filesystem"
 )
 
 func TestRunCopyWithMTimeFallback(t *testing.T) {

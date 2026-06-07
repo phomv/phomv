@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"github.com/chinny/phomv/internal/filesystem"
-	"github.com/chinny/phomv/internal/worker"
+	"github.com/phomv/phomv/internal/filesystem"
+	"github.com/phomv/phomv/internal/worker"
 )
 
 func newMoveCmd() *cobra.Command {

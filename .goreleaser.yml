@@ -37,6 +37,43 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+brews:
+  - name: phomv
+    repository:
+      owner: phomv
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/phomv/phomv"
+    description: "High-performance CLI that organizes photos into a YYYY/YYYY_MM/YYYY_MM_DD hierarchy from EXIF metadata"
+    license: "MIT"
+    install: |
+      bin.install "phomv"
+    test: |
+      system "#{bin}/phomv", "version"
+
+winget:
+  - name: phomv
+    publisher: phomv
+    publisher_url: "https://github.com/phomv"
+    homepage: "https://github.com/phomv/phomv"
+    short_description: "Organizes photos into a YYYY/YYYY_MM/YYYY_MM_DD hierarchy from EXIF metadata"
+    license: MIT
+    license_url: "https://github.com/phomv/phomv/blob/main/LICENSE"
+    package_identifier: phomv.phomv
+    repository:
+      owner: phomv
+      name: winget-pkgs
+      branch: "phomv-{{.Version}}"
+      token: "{{ .Env.WINGET_PKGS_TOKEN }}"
+      pull_request:
+        enabled: true
+        draft: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
 changelog:
   sort: asc
   filters:

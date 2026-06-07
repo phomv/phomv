@@ -25,6 +25,30 @@ core engine can later back a Wails or Fyne GUI.
 
 ## Install
 
+### Homebrew (macOS / Linux)
+
+```sh
+brew install phomv/tap/phomv
+```
+
+### Windows (winget)
+
+```sh
+winget install phomv.phomv
+```
+
+### Pre-built binaries
+
+Grab the latest release for your platform from the [releases page](https://github.com/phomv/phomv/releases).
+
+### From source
+
+```sh
+go install github.com/phomv/phomv/cmd/phomv@latest
+```
+
+Or build locally:
+
 ```sh
 make build       # produces ./bin/phomv
 make install     # installs into $GOBIN

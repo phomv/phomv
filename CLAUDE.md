@@ -41,4 +41,4 @@ internal/
 
 **Unknown dates**: files where neither EXIF nor mtime is readable go to `<dest>/Unknown/<original-filename>` instead of failing the run.
 
-**Module path:** `github.com/chinny/phomv`
+**Module path:** `github.com/phomv/phomv`
