@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-06
+
+### Changed
+- Module path moved from `github.com/chinny/phomv` to `github.com/phomv/phomv`
+  (repo transferred to the dedicated `phomv` org). Re-`go install` from the new path.
+
+### Added
+- Homebrew tap publishing via GoReleaser → `phomv/homebrew-tap`
+  (`brew install phomv/tap/phomv`).
+- winget manifest publishing via GoReleaser → PRs against `microsoft/winget-pkgs`
+  through the `phomv/winget-pkgs` fork (`winget install phomv.phomv`).
+
 ## [0.1.0] - 2026-06-05
 
 ### Added
