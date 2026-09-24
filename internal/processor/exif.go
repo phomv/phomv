@@ -1,8 +1,10 @@
 package processor
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -63,7 +65,18 @@ func readEXIFTime(path string) (time.Time, error) {
 	}
 	defer f.Close()
 
-	x, err := exif.Decode(f)
+	// goexif only understands JPEG/TIFF streams; HEIC/HEIF wraps EXIF in an
+	// ISO-BMFF item, so unwrap it first.
+	var src io.Reader = f
+	if tiff, err := heifEXIF(f); err == nil {
+		src = bytes.NewReader(tiff)
+	} else if !errors.Is(err, errNotHEIF) {
+		return time.Time{}, err
+	} else if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return time.Time{}, err
+	}
+
+	x, err := exif.Decode(src)
 	if err != nil {
 		return time.Time{}, err
 	}
