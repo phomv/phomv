@@ -165,3 +165,68 @@ func TestRunReportsMissingSource(t *testing.T) {
 		t.Fatalf("WalkErrors = %d, want 1", stats.WalkErrors)
 	}
 }
+
+// seedDuplicate copies a single photo from a fresh src into dst so that a
+// following move run sees it as a duplicate.
+func seedDuplicate(t *testing.T) (src, dst, photo string) {
+	t.Helper()
+	src, dst = t.TempDir(), t.TempDir()
+	photo = filepath.Join(src, "a.jpg")
+	if err := os.WriteFile(photo, []byte("payload"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	when := time.Date(2022, 1, 2, 0, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(photo, when, when); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{Source: src, Destination: dst, Operation: filesystem.OpCopy, Workers: 1}
+	for r := range firstChan(Run(context.Background(), cfg)) {
+		if r.Err != nil {
+			t.Fatal(r.Err)
+		}
+	}
+	return src, dst, photo
+}
+
+func TestRunMoveDuplicateRemovesSource(t *testing.T) {
+	src, dst, photo := seedDuplicate(t)
+	results, stats := Run(context.Background(), Config{Source: src, Destination: dst, Operation: filesystem.OpMove, Workers: 1})
+	for r := range results {
+		if r.Err != nil {
+			t.Fatal(r.Err)
+		}
+	}
+	if stats.Skipped != 1 || stats.Failed != 0 {
+		t.Fatalf("stats = %+v, want 1 skipped, 0 failed", stats)
+	}
+	if _, err := os.Stat(photo); !os.IsNotExist(err) {
+		t.Fatalf("source still present: %v", err)
+	}
+}
+
+func TestRunMoveDuplicateRemoveFailureIsFailed(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs POSIX permissions and a non-root user")
+	}
+	src, dst, photo := seedDuplicate(t)
+	// A read-only directory blocks unlinking its entries.
+	if err := os.Chmod(src, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(src, 0o755) })
+
+	results, stats := Run(context.Background(), Config{Source: src, Destination: dst, Operation: filesystem.OpMove, Workers: 1})
+	var got []Result
+	for r := range results {
+		got = append(got, r)
+	}
+	if len(got) != 1 || got[0].Status != StatusFailed || got[0].Err == nil {
+		t.Fatalf("results = %+v, want one failed result with an error", got)
+	}
+	if stats.Failed != 1 || stats.Skipped != 0 {
+		t.Fatalf("stats = %+v, want 1 failed, 0 skipped", stats)
+	}
+	if _, err := os.Stat(photo); err != nil {
+		t.Fatalf("source should remain after failed removal: %v", err)
+	}
+}

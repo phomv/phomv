@@ -7,6 +7,7 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -185,8 +186,10 @@ func process(cfg Config, job Job) Result {
 		res.Dst = dst
 		res.Status = StatusSkippedDuplicate
 		if cfg.Operation == filesystem.OpMove {
+			// The move isn't complete until the source is gone.
 			if rmErr := os.Remove(job.Path); rmErr != nil {
-				res.Err = rmErr
+				res.Status = StatusFailed
+				res.Err = fmt.Errorf("remove duplicate source: %w", rmErr)
 			}
 		}
 		return res
