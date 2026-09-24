@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-23
+
 ### Fixed
 - HEIC/HEIF photos are now dated from their EXIF `DateTimeOriginal` instead of
   silently falling back to file mtime (#12).
