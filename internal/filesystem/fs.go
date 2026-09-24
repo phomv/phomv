@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // Operation describes the action requested on a file.
@@ -36,22 +37,63 @@ func (o Operation) String() string {
 // If the existing file at desired is byte-identical to src, ResolveCollision
 // returns ("", true, nil) to signal the caller can skip the operation.
 func ResolveCollision(src, desired string) (string, bool, error) {
-	return resolveCollision(src, desired, true)
+	return resolveCollision(src, desired, nil)
 }
 
-func ResolveCollisionReadOnly(src, desired string) (string, bool, error) {
-	return resolveCollision(src, desired, false)
+// Claims records the destination paths a dry run has handed out, standing in
+// for the empty files a real run creates to reserve them. Safe for concurrent
+// use; the zero value is ready.
+type Claims struct {
+	mu     sync.Mutex
+	byPath map[string]string // destination -> src that claimed it
 }
 
-func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
+func (c *Claims) key(p string) string {
+	if caseInsensitive {
+		return strings.ToLower(p)
+	}
+	return p
+}
+
+// claim marks p as taken by src unless it is already claimed or exists on disk.
+func (c *Claims) claim(src, p string) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, taken := c.byPath[c.key(p)]; taken {
+		return false, nil
+	}
+	if _, err := os.Stat(p); err == nil {
+		return false, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+	if c.byPath == nil {
+		c.byPath = map[string]string{}
+	}
+	c.byPath[c.key(p)] = src
+	return true, nil
+}
+
+// claimant returns the src that claimed p in this dry run, if any.
+func (c *Claims) claimant(p string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	src, ok := c.byPath[c.key(p)]
+	return src, ok
+}
+
+// ResolveCollisionReadOnly is the dry-run counterpart of ResolveCollision: it
+// writes nothing, but records its picks in claims so that later calls in the
+// same run see them as taken, mirroring the real run's on-disk reservations.
+func ResolveCollisionReadOnly(src, desired string, claims *Claims) (string, bool, error) {
+	return resolveCollision(src, desired, claims)
+}
+
+// resolveCollision reserves on disk when claims is nil, otherwise in claims.
+func resolveCollision(src, desired string, claims *Claims) (string, bool, error) {
 	checkPath := func(p string) (bool, error) {
-		if !reserve {
-			if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
-				return true, nil
-			} else if err != nil {
-				return false, err
-			}
-			return false, nil
+		if claims != nil {
+			return claims.claim(src, p)
 		}
 
 		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
@@ -86,7 +128,15 @@ func resolveCollision(src, desired string, reserve bool) (string, bool, error) {
 		return desired, false, nil
 	}
 
-	same, err := sameContent(src, desired)
+	// In a dry run, a path claimed earlier in the run holds the claimant's
+	// bytes in the real run, so compare against that file instead.
+	existing := desired
+	if claims != nil {
+		if claimant, ok := claims.claimant(desired); ok {
+			existing = claimant
+		}
+	}
+	same, err := sameContent(src, existing)
 	if err != nil {
 		return "", false, err
 	}

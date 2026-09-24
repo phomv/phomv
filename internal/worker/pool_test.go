@@ -230,3 +230,56 @@ func TestRunMoveDuplicateRemoveFailureIsFailed(t *testing.T) {
 		t.Fatalf("source should remain after failed removal: %v", err)
 	}
 }
+
+// TestRunDryRunMatchesRealRun checks that a dry run predicts the same
+// destinations as a real run when several sources share a filename. Contents
+// are distinct: duplicate detection only compares the base path (#17), so
+// with a repeated body the outcome would depend on worker ordering.
+func TestRunDryRunMatchesRealRun(t *testing.T) {
+	src := t.TempDir()
+	when := time.Date(2022, 6, 1, 12, 0, 0, 0, time.UTC)
+	for dir, body := range map[string]string{"a": "one", "b": "two", "c": "three"} {
+		p := filepath.Join(src, dir, "IMG_0001.jpg")
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	outcome := func(dryRun bool) (map[string]bool, Stats) {
+		dst := t.TempDir()
+		results, stats := Run(context.Background(), Config{
+			Source: src, Destination: dst, Operation: filesystem.OpCopy, Workers: 4, DryRun: dryRun,
+		})
+		dsts := map[string]bool{}
+		for r := range results {
+			if r.Err != nil {
+				t.Fatal(r.Err)
+			}
+			if r.Status == StatusOK {
+				rel, _ := filepath.Rel(dst, r.Dst)
+				dsts[rel] = true
+			}
+		}
+		return dsts, *stats
+	}
+
+	dryDsts, dry := outcome(true)
+	realDsts, real := outcome(false)
+	if len(dryDsts) != 3 || len(realDsts) != 3 {
+		t.Fatalf("want 3 distinct destinations; dry=%v real=%v", dryDsts, realDsts)
+	}
+	for d := range realDsts {
+		if !dryDsts[d] {
+			t.Fatalf("dry run missed %s; dry=%v real=%v", d, dryDsts, realDsts)
+		}
+	}
+	if dry.Processed != real.Processed || dry.Skipped != real.Skipped {
+		t.Fatalf("stats differ: dry=%+v real=%+v", dry, real)
+	}
+}
