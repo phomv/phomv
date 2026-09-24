@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - HEIC/HEIF photos are now dated from their EXIF `DateTimeOriginal` instead of
   silently falling back to file mtime (#12).
+- `copy`/`move` now refuse to run when `--src` and `--dest` are the same
+  directory or one is nested inside the other (symlinks resolved); previously
+  the walker could re-process files it had just written (#13).
+- `make build`/`make install` used the old `github.com/chinny/phomv` module path
+  and failed.
 
 ## [0.1.1] - 2026-06-06
 

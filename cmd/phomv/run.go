@@ -43,6 +43,9 @@ func runOp(op filesystem.Operation) error {
 	if info, err := os.Stat(flagSrc); err != nil || !info.IsDir() {
 		return fmt.Errorf("source %q is not a directory", flagSrc)
 	}
+	if err := filesystem.CheckOverlap(flagSrc, flagDest); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(flagDest, 0o755); err != nil {
 		return fmt.Errorf("create destination: %w", err)
 	}
