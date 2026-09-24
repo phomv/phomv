@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `copy`/`move` now refuse to run when `--src` and `--dest` are the same
   directory or one is nested inside the other (symlinks resolved); previously
   the walker could re-process files it had just written (#13).
+- Unreadable directories (permissions, I/O errors) were silently skipped during
+  discovery. Each is now logged as a warning, counted as `walk_errors` in the
+  summary, and makes the run exit nonzero (#14).
 - `make build`/`make install` used the old `github.com/chinny/phomv` module path
   and failed.
 
