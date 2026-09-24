@@ -89,12 +89,17 @@ func runOp(op filesystem.Operation) error {
 		Uint64("skipped", stats.Skipped).
 		Uint64("unknown", stats.Unknown).
 		Uint64("failed", stats.Failed).
+		Uint64("walk_errors", stats.WalkErrors).
 		Msg("done")
 
+	var errs []error
 	if stats.Failed > 0 {
-		return fmt.Errorf("%d files failed", stats.Failed)
+		errs = append(errs, fmt.Errorf("%d files failed", stats.Failed))
 	}
-	return nil
+	if stats.WalkErrors > 0 {
+		errs = append(errs, fmt.Errorf("%d paths could not be read and were not scanned", stats.WalkErrors))
+	}
+	return errors.Join(errs...)
 }
 
 func configureLogging() {
@@ -108,6 +113,10 @@ func configureLogging() {
 }
 
 func logResult(r worker.Result) {
+	if r.Status == worker.StatusWalkError {
+		log.Warn().Err(r.Err).Str("path", r.Src).Msg("unreadable, not scanned")
+		return
+	}
 	evt := log.Debug()
 	switch r.Status {
 	case worker.StatusFailed:

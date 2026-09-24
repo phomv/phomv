@@ -29,6 +29,9 @@ const (
 	StatusSkippedDuplicate
 	StatusUnknownDate
 	StatusFailed
+	// StatusWalkError marks a path discovery could not read (permissions,
+	// I/O error); its subtree, if any, was not scanned.
+	StatusWalkError
 )
 
 // Result is the outcome of processing one Job.
@@ -57,6 +60,7 @@ type Stats struct {
 	Skipped    uint64
 	Unknown    uint64
 	Failed     uint64
+	WalkErrors uint64
 }
 
 // Run executes the pipeline. Results are emitted on the returned channel and
@@ -75,6 +79,12 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 		defer close(jobs)
 		_ = filepath.Walk(cfg.Source, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+				atomic.AddUint64(&stats.WalkErrors, 1)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case results <- Result{Src: path, Status: StatusWalkError, DryRun: cfg.DryRun, Err: err}:
+				}
 				return nil
 			}
 			if info.IsDir() {
