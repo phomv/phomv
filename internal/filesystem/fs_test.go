@@ -21,7 +21,7 @@ func TestResolveCollisionNoConflict(t *testing.T) {
 	src := filepath.Join(dir, "a.jpg")
 	writeFile(t, src, "hello")
 	dst := filepath.Join(dir, "out", "a.jpg")
-	got, skip, err := ResolveCollisionReadOnly(src, dst)
+	got, skip, err := ResolveCollisionReadOnly(src, dst, &Claims{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestResolveCollisionIdenticalSkips(t *testing.T) {
 	dst := filepath.Join(dir, "out", "a.jpg")
 	writeFile(t, src, "same-bytes")
 	writeFile(t, dst, "same-bytes")
-	got, skip, err := ResolveCollisionReadOnly(src, dst)
+	got, skip, err := ResolveCollisionReadOnly(src, dst, &Claims{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestResolveCollisionDifferentSuffixes(t *testing.T) {
 	dst := filepath.Join(dir, "out", "a.jpg")
 	writeFile(t, src, "new-content")
 	writeFile(t, dst, "existing-content")
-	got, skip, err := ResolveCollisionReadOnly(src, dst)
+	got, skip, err := ResolveCollisionReadOnly(src, dst, &Claims{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,5 +187,32 @@ func TestCleanupEmptyDirs(t *testing.T) {
 	}
 	if _, err := os.Stat(keep); err != nil {
 		t.Fatal("non-empty dir should be preserved")
+	}
+}
+
+func TestResolveCollisionReadOnlyHonorsClaims(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "x", "IMG_0001.jpg")
+	b := filepath.Join(dir, "y", "IMG_0001.jpg")
+	c := filepath.Join(dir, "z", "IMG_0001.jpg")
+	writeFile(t, a, "first")
+	writeFile(t, b, "second")
+	writeFile(t, c, "first") // same bytes as a
+	dst := filepath.Join(dir, "out", "IMG_0001.jpg")
+	claims := &Claims{}
+
+	got, skip, err := ResolveCollisionReadOnly(a, dst, claims)
+	if err != nil || skip || got != dst {
+		t.Fatalf("a: got %q skip=%v err=%v, want %q", got, skip, err, dst)
+	}
+	got, skip, err = ResolveCollisionReadOnly(b, dst, claims)
+	if want := filepath.Join(dir, "out", "IMG_0001_1.jpg"); err != nil || skip || got != want {
+		t.Fatalf("b: got %q skip=%v err=%v, want %q", got, skip, err, want)
+	}
+	if _, skip, err = ResolveCollisionReadOnly(c, dst, claims); err != nil || !skip {
+		t.Fatalf("c: skip=%v err=%v, want skip as duplicate of a", skip, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "out")); !os.IsNotExist(err) {
+		t.Fatalf("dry run wrote to disk: %v", err)
 	}
 }

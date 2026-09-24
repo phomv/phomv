@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `move`: when a duplicate's source file could not be deleted, the error was
   dropped and the file reported as a skipped duplicate. It is now reported as
   failed, and the run exits nonzero (#15).
+- `--dry-run` reported the same destination for every file sharing a name
+  (e.g. `IMG_0001.jpg` from different folders); it now predicts the `_1`, `_2`,
+  … suffixes and duplicate skips a real run would produce (#16).
 - `make build`/`make install` used the old `github.com/chinny/phomv` module path
   and failed.
 

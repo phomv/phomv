@@ -75,6 +75,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 	stats := &Stats{}
 
 	jobs := make(chan Job, cfg.Workers*2)
+	claims := &filesystem.Claims{}
 
 	go func() {
 		defer close(jobs)
@@ -115,7 +116,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 					return
 				default:
 				}
-				res := process(cfg, job)
+				res := process(cfg, claims, job)
 				switch res.Status {
 				case StatusOK:
 					atomic.AddUint64(&stats.Processed, 1)
@@ -143,7 +144,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 	return results, stats
 }
 
-func process(cfg Config, job Job) Result {
+func process(cfg Config, claims *filesystem.Claims, job Job) Result {
 	res := Result{Src: job.Path, DryRun: cfg.DryRun}
 
 	pt, err := processor.ExtractTime(job.Path)
@@ -158,7 +159,7 @@ func process(cfg Config, job Job) Result {
 	}
 
 	if cfg.DryRun {
-		finalDst, skip, err := filesystem.ResolveCollisionReadOnly(job.Path, dst)
+		finalDst, skip, err := filesystem.ResolveCollisionReadOnly(job.Path, dst, claims)
 		if err != nil {
 			res.Status = StatusFailed
 			res.Err = err
