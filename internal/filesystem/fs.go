@@ -3,7 +3,7 @@
 package filesystem
 
 import (
-	"crypto/sha256"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -228,11 +228,11 @@ func Apply(op Operation, src, dst string) error {
 // no files. The root itself is preserved.
 func CleanupEmptyDirs(root string) error {
 	var dirs []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			dirs = append(dirs, path)
 		}
 		return nil
@@ -305,38 +305,53 @@ func copyFile(src, dst string) error {
 	return os.Rename(tmp, dst)
 }
 
+// compareChunk is how much of each file sameContent reads at a time.
+const compareChunk = 64 << 10
+
+// sameContent reports whether a and b hold identical bytes. Sizes are
+// compared first; same-size files are then read side by side, stopping at
+// the first differing chunk.
 func sameContent(a, b string) (bool, error) {
-	infoA, err := os.Stat(a)
+	fa, err := os.Open(a)
 	if err != nil {
 		return false, err
 	}
-	infoB, err := os.Stat(b)
+	defer fa.Close()
+	fb, err := os.Open(b)
+	if err != nil {
+		return false, err
+	}
+	defer fb.Close()
+
+	infoA, err := fa.Stat()
+	if err != nil {
+		return false, err
+	}
+	infoB, err := fb.Stat()
 	if err != nil {
 		return false, err
 	}
 	if infoA.Size() != infoB.Size() {
 		return false, nil
 	}
-	hA, err := hashFile(a)
-	if err != nil {
-		return false, err
-	}
-	hB, err := hashFile(b)
-	if err != nil {
-		return false, err
-	}
-	return hA == hB, nil
-}
 
-func hashFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
+	bufA, bufB := make([]byte, compareChunk), make([]byte, compareChunk)
+	for {
+		nA, errA := io.ReadFull(fa, bufA)
+		nB, errB := io.ReadFull(fb, bufB)
+		if !bytes.Equal(bufA[:nA], bufB[:nB]) {
+			return false, nil
+		}
+		doneA := errA == io.EOF || errA == io.ErrUnexpectedEOF
+		doneB := errB == io.EOF || errB == io.ErrUnexpectedEOF
+		if errA != nil && !doneA {
+			return false, errA
+		}
+		if errB != nil && !doneB {
+			return false, errB
+		}
+		if doneA || doneB {
+			return doneA && doneB, nil
+		}
 	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

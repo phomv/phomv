@@ -90,7 +90,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 		defer close(jobs)
 		sidecarsOf := map[string][]processor.Sidecar{} // photo path -> sidecars
 		isSidecar := map[string]bool{}
-		_ = filepath.Walk(cfg.Source, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.WalkDir(cfg.Source, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				atomic.AddUint64(&stats.WalkErrors, 1)
 				select {
@@ -100,7 +100,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 				}
 				return nil
 			}
-			if info.IsDir() {
+			if d.IsDir() {
 				if !cfg.SkipSidecars {
 					indexSidecars(path, sidecarsOf, isSidecar)
 				}

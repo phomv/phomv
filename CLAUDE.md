@@ -28,7 +28,7 @@ internal/
                  + destination path formatting
   worker/      — concurrent pipeline: filepath.Walk → jobs channel → fixed worker pool → Results channel
   filesystem/  — file I/O primitives: copy (via temp+rename), move (rename with cross-device fallback),
-                 SHA-256 idempotency check, collision suffix resolution, empty-dir cleanup
+                 byte-for-byte idempotency check, collision suffix resolution, empty-dir cleanup
 ```
 
 **Data flow:** `worker.Run(ctx, Config)` returns `(<-chan Result, *Stats)`. The CLI consumes the channel to print progress; a future GUI can consume the same channel without touching the engine.
@@ -38,7 +38,7 @@ internal/
 - `worker.Result` — src, resolved dst, `Status` (OK/SkippedDuplicate/UnknownDate/Failed), `processor.TimeSource`, optional error
 - `processor.PhotoTime` — resolved `time.Time` + `TimeSource` (EXIF or mtime)
 
-**Collision resolution** (`filesystem.ResolveCollision`): identical files (SHA-256) are skipped; differing files with the same name get `_1`, `_2`, … suffixes before the extension.
+**Collision resolution** (`filesystem.ResolveCollision`): byte-identical files are skipped; differing files with the same name get `_1`, `_2`, … suffixes before the extension.
 
 **Sidecars** (`processor.PairSidecars`): discovery indexes each directory once; `.xmp`/`.aae`/Live Photo `.mov` files sharing a photo's stem ride on its `Job` and are placed (via `filesystem.ReserveExact`, never suffixed) next to wherever the photo landed, renamed to its final stem. They're emitted as their own `Result`s with `SidecarOf` set.
 
