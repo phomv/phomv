@@ -89,7 +89,8 @@ type Stats struct {
 
 // Run executes the pipeline. Results are emitted on the returned channel and
 // it is closed once all workers exit. The returned Stats pointer is updated
-// as work progresses; callers should only read it after the channel closes.
+// atomically as work progresses: read fields with atomic.LoadUint64 while
+// the run is in flight, or directly once the channel closes.
 func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 	if cfg.Workers <= 0 {
 		cfg.Workers = 4

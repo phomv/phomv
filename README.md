@@ -32,6 +32,8 @@ core engine can later back a Wails or Fyne GUI.
   files. Add your own skips with `--exclude`.
 - Files with unreadable timestamps go to an `Unknown/` bucket instead of
   crashing the run.
+- Live `N done / M found` progress on a terminal; a `progress` log line every
+  10 s when output isn't a terminal.
 - Structured logging via zerolog.
 
 ## Install
