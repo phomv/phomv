@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -53,7 +56,14 @@ func runOp(op filesystem.Operation) error {
 		return fmt.Errorf("create destination: %w", err)
 	}
 
-	configureLogging()
+	// On a terminal, a live counter shares stderr with the log.
+	var prog *progress
+	var logOut io.Writer = os.Stderr
+	if isTerminal(os.Stderr) {
+		prog = &progress{out: os.Stderr}
+		logOut = prog
+	}
+	configureLogging(logOut)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -90,9 +100,15 @@ func runOp(op filesystem.Operation) error {
 		Msg("starting")
 
 	results, stats := worker.Run(ctx, cfg)
+	var done atomic.Uint64
+	stopProgress := reportProgress(prog, &done, stats)
 	for r := range results {
+		if countsAsDone(r) {
+			done.Add(1)
+		}
 		logResult(r)
 	}
+	stopProgress()
 
 	log.Info().
 		Uint64("discovered", stats.Discovered).
@@ -115,14 +131,60 @@ func runOp(op filesystem.Operation) error {
 	return errors.Join(errs...)
 }
 
-func configureLogging() {
+// reportProgress shows done/found totals until the returned func is called:
+// redrawn often on a terminal (prog non-nil), otherwise logged every 10s so
+// long unattended runs still show signs of life.
+func reportProgress(prog *progress, done *atomic.Uint64, stats *worker.Stats) (stop func()) {
+	interval := 10 * time.Second
+	if prog != nil {
+		interval = 200 * time.Millisecond
+	}
+	quit, exited := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(exited)
+		tick := time.NewTicker(interval)
+		defer tick.Stop()
+		for {
+			select {
+			case <-quit:
+				return
+			case <-tick.C:
+				d, found := done.Load(), atomic.LoadUint64(&stats.Discovered)
+				if prog != nil {
+					prog.update(d, found)
+				} else {
+					log.Info().Uint64("done", d).Uint64("found", found).Msg("progress")
+				}
+			}
+		}
+	}()
+	return func() {
+		close(quit)
+		<-exited
+		if prog != nil {
+			prog.finish()
+		}
+	}
+}
+
+// countsAsDone reports whether r finishes one of the files counted in
+// Stats.Discovered (sidecars, skipped folders and walk errors aren't).
+func countsAsDone(r worker.Result) bool {
+	switch r.Status {
+	case worker.StatusWalkError, worker.StatusExcludedDir:
+		return false
+	}
+	return r.SidecarOf == ""
+}
+
+func configureLogging(out io.Writer) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	level := zerolog.InfoLevel
 	if flagVerbose {
 		level = zerolog.DebugLevel
 	}
 	zerolog.SetGlobalLevel(level)
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: out})
 }
 
 func logResult(r worker.Result) {

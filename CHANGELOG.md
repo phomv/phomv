@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shell completions (bash, zsh, fish, PowerShell) and man pages ship in the
   release archives and are installed by Homebrew; `make docs` generates
   them locally (#24).
+- Progress at the default log level: a live `N done / M found` counter on a
+  terminal, or a `progress` log line every 10 s when stderr isn't one (#18).
 - Videos (`.mp4`, `.mov`, `.m4v`, `.3gp`) are organized alongside photos,
   dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs
   report their time source as `quicktime`. `--no-videos` leaves them in
