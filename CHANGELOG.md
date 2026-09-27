@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-running an import no longer piles up identical copies: a file that
   already exists at a `_1`, `_2`, … variant of its destination is now skipped
   as a duplicate, not written again under the next free suffix (#17).
+- Byte-identical files processed at the same time by different workers were
+  all written (`IMG.jpg`, `IMG_1.jpg`, …) instead of the extras being skipped
+  as duplicates (#34).
 
 ## [0.1.2] - 2026-09-23
 
