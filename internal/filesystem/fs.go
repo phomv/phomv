@@ -35,8 +35,8 @@ func (o Operation) String() string {
 // Time-of-Check to Time-of-Use (TOCTOU) race conditions.
 //
 // If the existing file at desired, or at any suffixed variant tried before a
-// free one is found, is byte-identical to src, ResolveCollision returns
-// ("", true, nil) to signal the caller can skip the operation.
+// free one is found, is byte-identical to src, ResolveCollision returns that
+// path and true to signal the caller can skip the operation.
 //
 // Pass the same claims to every call in a run so that a file racing an
 // identical one still in flight is recognized as its duplicate; nil disables
@@ -111,41 +111,19 @@ func ResolveCollisionReadOnly(src, desired string, claims *Claims) (string, bool
 	return resolveCollision(src, desired, claims, true)
 }
 
-// resolveCollision reserves in claims for a dry run, otherwise on disk
-// (recording the reservation in claims when non-nil).
+// ReserveExact is ResolveCollision without suffixing: it reserves exactly dst
+// and reports true, or, if dst is taken, reports whether it already holds
+// src's bytes.
+func ReserveExact(src, dst string, claims *Claims) (reserved, duplicate bool, err error) {
+	return tryPath(src, dst, claims, false)
+}
+
+// ReserveExactReadOnly is the dry-run counterpart of ReserveExact.
+func ReserveExactReadOnly(src, dst string, claims *Claims) (reserved, duplicate bool, err error) {
+	return tryPath(src, dst, claims, true)
+}
+
 func resolveCollision(src, desired string, claims *Claims, dryRun bool) (string, bool, error) {
-	checkPath := func(p string) (bool, error) {
-		switch {
-		case dryRun:
-			return claims.claim(src, p)
-		case claims != nil:
-			return claims.reserve(src, p)
-		default:
-			return reserveOnDisk(p)
-		}
-	}
-
-	// A taken path may already hold src's bytes, so re-running an import
-	// skips files that landed on a suffixed name last time. A path claimed
-	// earlier in this run may still be an empty reservation (or, in a dry
-	// run, never written), so compare against its claimant instead.
-	isDuplicate := func(p string) (bool, error) {
-		if claims != nil {
-			if claimant, ok := claims.claimant(p); ok {
-				same, err := sameContent(src, claimant)
-				if !errors.Is(err, os.ErrNotExist) {
-					return same, err
-				}
-				// A move consumed the claimant; p now holds its bytes.
-			}
-		}
-		same, err := sameContent(src, p)
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil // removed since we checked; nothing to compare
-		}
-		return same, err
-	}
-
 	ext := filepath.Ext(desired)
 	stem := strings.TrimSuffix(desired, ext)
 	for i := 0; i < 10000; i++ {
@@ -153,22 +131,55 @@ func resolveCollision(src, desired string, claims *Claims, dryRun bool) (string,
 		if i > 0 {
 			candidate = fmt.Sprintf("%s_%d%s", stem, i, ext)
 		}
-		available, err := checkPath(candidate)
+		reserved, duplicate, err := tryPath(src, candidate, claims, dryRun)
 		if err != nil {
 			return "", false, err
 		}
-		if available {
-			return candidate, false, nil
-		}
-		same, err := isDuplicate(candidate)
-		if err != nil {
-			return "", false, err
-		}
-		if same {
-			return "", true, nil
+		if reserved || duplicate {
+			return candidate, duplicate, nil
 		}
 	}
 	return "", false, fmt.Errorf("could not resolve collision for %s", desired)
+}
+
+// tryPath reserves p for src (in claims for a dry run, otherwise on disk,
+// recording the reservation in claims when non-nil). If p is taken, it
+// reports whether p already holds src's bytes.
+func tryPath(src, p string, claims *Claims, dryRun bool) (reserved, duplicate bool, err error) {
+	switch {
+	case dryRun:
+		reserved, err = claims.claim(src, p)
+	case claims != nil:
+		reserved, err = claims.reserve(src, p)
+	default:
+		reserved, err = reserveOnDisk(p)
+	}
+	if reserved || err != nil {
+		return reserved, false, err
+	}
+	duplicate, err = isDuplicate(src, p, claims)
+	return false, duplicate, err
+}
+
+// isDuplicate reports whether the file at the taken path p holds src's bytes,
+// so re-running an import skips files that landed on a suffixed name last
+// time. A path claimed earlier in this run may still be an empty reservation
+// (or, in a dry run, never written), so compare against its claimant instead.
+func isDuplicate(src, p string, claims *Claims) (bool, error) {
+	if claims != nil {
+		if claimant, ok := claims.claimant(p); ok {
+			same, err := sameContent(src, claimant)
+			if !errors.Is(err, os.ErrNotExist) {
+				return same, err
+			}
+			// A move consumed the claimant; p now holds its bytes.
+		}
+	}
+	same, err := sameContent(src, p)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil // removed since we checked; nothing to compare
+	}
+	return same, err
 }
 
 // reserveOnDisk atomically creates an empty file at p (and its parent dirs),

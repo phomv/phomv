@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs
   report their time source as `quicktime`. `--no-videos` leaves them in
   place (#19).
+- Sidecar files travel with their photo: `IMG_1234.xmp` / `IMG_1234.CR2.xmp`,
+  Apple `IMG_1234.AAE`, and a Live Photo's `IMG_1234.mov` land next to the
+  photo and take its collision suffix (`IMG_1234_1.HEIC` → `IMG_1234_1.mov`).
+  A different file already at a sidecar's target is reported as a failure,
+  never overwritten. `--no-sidecars` turns pairing off (#20).
 
 ### Fixed
 - Re-running an import no longer piles up identical copies: a file that

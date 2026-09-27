@@ -128,7 +128,7 @@ func TestRootRegistersCommandsAndFlags(t *testing.T) {
 		}
 	}
 	for flag, short := range map[string]string{
-		"src": "s", "dest": "d", "dry-run": "n", "workers": "w", "verbose": "v", "no-videos": "",
+		"src": "s", "dest": "d", "dry-run": "n", "workers": "w", "verbose": "v", "no-videos": "", "no-sidecars": "",
 	} {
 		f := root.PersistentFlags().Lookup(flag)
 		if f == nil || f.Shorthand != short {
