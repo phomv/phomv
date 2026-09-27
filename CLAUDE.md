@@ -11,6 +11,7 @@ make vet         # go vet ./...
 make fmt         # gofmt -s -w .
 make install     # go install to $GOBIN
 make release     # cross-compile to ./dist for linux/darwin/windows
+make docs        # shell completions → ./completions, man pages → ./manpages
 
 # Run a single package's tests
 go test ./internal/processor/...

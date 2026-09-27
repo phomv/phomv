@@ -140,3 +140,22 @@ func TestRootRegistersCommandsAndFlags(t *testing.T) {
 		t.Errorf("--workers default = %s, want 4", got)
 	}
 }
+
+func TestManGeneratesPages(t *testing.T) {
+	dir := t.TempDir()
+	if err := execute(t, "man", "--dir", dir); err != nil {
+		t.Fatal(err)
+	}
+	for _, page := range []string{"phomv.1", "phomv-copy.1", "phomv-move.1"} {
+		b, err := os.ReadFile(filepath.Join(dir, page))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), "--src") {
+			t.Errorf("%s doesn't document --src", page)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "phomv-man.1")); !os.IsNotExist(err) {
+		t.Error("the hidden man command documented itself")
+	}
+}
