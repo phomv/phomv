@@ -40,6 +40,8 @@ internal/
 
 **Collision resolution** (`filesystem.ResolveCollision`): identical files (SHA-256) are skipped; differing files with the same name get `_1`, `_2`, … suffixes before the extension.
 
+**Sidecars** (`processor.PairSidecars`): discovery indexes each directory once; `.xmp`/`.aae`/Live Photo `.mov` files sharing a photo's stem ride on its `Job` and are placed (via `filesystem.ReserveExact`, never suffixed) next to wherever the photo landed, renamed to its final stem. They're emitted as their own `Result`s with `SidecarOf` set.
+
 **Unknown dates**: files where neither EXIF nor mtime is readable go to `<dest>/Unknown/<original-filename>` instead of failing the run.
 
 **Module path:** `github.com/phomv/phomv`

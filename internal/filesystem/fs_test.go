@@ -280,3 +280,45 @@ func TestResolveCollisionSkipsDuplicateOfInFlightClaim(t *testing.T) {
 		t.Fatalf("b: got %q skip=%v err=%v, want skip as duplicate of in-flight a", got, skip, err)
 	}
 }
+
+func TestResolveCollisionSkipReportsMatchedPath(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.jpg")
+	dst := filepath.Join(dir, "out", "a.jpg")
+	writeFile(t, src, "incoming")
+	writeFile(t, dst, "different")
+	writeFile(t, filepath.Join(dir, "out", "a_1.jpg"), "incoming")
+	got, skip, err := ResolveCollision(src, dst, &Claims{})
+	if want := filepath.Join(dir, "out", "a_1.jpg"); err != nil || !skip || got != want {
+		t.Fatalf("got %q skip=%v err=%v, want skip at %q", got, skip, err, want)
+	}
+}
+
+func TestReserveExact(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "a.xmp")
+	writeFile(t, src, "edits")
+	free := filepath.Join(dir, "out", "free.xmp")
+	same := filepath.Join(dir, "out", "same.xmp")
+	other := filepath.Join(dir, "out", "other.xmp")
+	writeFile(t, same, "edits")
+	writeFile(t, other, "older edits")
+
+	for _, tc := range []struct {
+		dst                 string
+		reserved, duplicate bool
+	}{
+		{free, true, false},
+		{same, false, true},
+		{other, false, false},
+	} {
+		reserved, duplicate, err := ReserveExact(src, tc.dst, &Claims{})
+		if err != nil || reserved != tc.reserved || duplicate != tc.duplicate {
+			t.Errorf("%s: reserved=%v duplicate=%v err=%v, want %v/%v",
+				filepath.Base(tc.dst), reserved, duplicate, err, tc.reserved, tc.duplicate)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "out", "other_1.xmp")); !os.IsNotExist(err) {
+		t.Error("ReserveExact must not fall back to a suffixed name")
+	}
+}

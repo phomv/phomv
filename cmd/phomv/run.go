@@ -63,12 +63,13 @@ func runOp(op filesystem.Operation) error {
 	}()
 
 	cfg := worker.Config{
-		Source:      flagSrc,
-		Destination: flagDest,
-		Operation:   op,
-		Workers:     flagWorkers,
-		DryRun:      flagDryRun,
-		SkipVideos:  flagNoVideos,
+		Source:       flagSrc,
+		Destination:  flagDest,
+		Operation:    op,
+		Workers:      flagWorkers,
+		DryRun:       flagDryRun,
+		SkipVideos:   flagNoVideos,
+		SkipSidecars: flagNoSidecars,
 	}
 
 	log.Info().
@@ -78,6 +79,7 @@ func runOp(op filesystem.Operation) error {
 		Int("workers", cfg.Workers).
 		Bool("dry_run", cfg.DryRun).
 		Bool("videos", !cfg.SkipVideos).
+		Bool("sidecars", !cfg.SkipSidecars).
 		Msg("starting")
 
 	results, stats := worker.Run(ctx, cfg)
@@ -90,6 +92,7 @@ func runOp(op filesystem.Operation) error {
 		Uint64("processed", stats.Processed).
 		Uint64("skipped", stats.Skipped).
 		Uint64("unknown", stats.Unknown).
+		Uint64("sidecars", stats.Sidecars).
 		Uint64("failed", stats.Failed).
 		Uint64("walk_errors", stats.WalkErrors).
 		Msg("done")
@@ -127,6 +130,9 @@ func logResult(r worker.Result) {
 		evt = log.Info().Str("status", "skip-duplicate")
 	case worker.StatusUnknownDate:
 		evt = log.Warn().Str("status", "unknown-date")
+	}
+	if r.SidecarOf != "" {
+		evt = evt.Str("sidecar_of", r.SidecarOf)
 	}
 	evt.
 		Str("src", r.Src).

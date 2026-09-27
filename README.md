@@ -22,6 +22,9 @@ core engine can later back a Wails or Fyne GUI.
 - Atomic-ish copy via temp files + rename; cross-device move fallback.
 - Idempotent: identical files are skipped via SHA-256 content compare.
 - Collision-safe naming (`IMG_001_1.jpg`, `IMG_001_2.jpg`, ...).
+- Sidecars travel with their photo and take its new name: `.xmp`
+  (Lightroom, darktable's `IMG_1.CR2.xmp`), Apple `.aae` edits, and a Live
+  Photo's `.mov`.
 - Dry-run mode that logs every planned action without touching disk.
 - Files with unreadable timestamps go to an `Unknown/` bucket instead of
   crashing the run.
@@ -86,7 +89,8 @@ phomv version
 | `-n, --dry-run`   | `false` | Simulate execution without touching disk       |
 | `-w, --workers`   | `4`     | Number of concurrent workers                   |
 | `-v, --verbose`   | `false` | Enable debug logging                           |
-| `--no-videos`     | `false` | Leave video files in place                     |
+| `--no-videos`     | `false` | Leave video files in place (Live Photo `.mov`s still follow their photo) |
+| `--no-sidecars`   | `false` | Don't carry `.xmp`/`.aae`/Live Photo `.mov` with their photo |
 
 ## Project layout
 

@@ -5,12 +5,13 @@ import (
 )
 
 var (
-	flagSrc      string
-	flagDest     string
-	flagDryRun   bool
-	flagWorkers  int
-	flagVerbose  bool
-	flagNoVideos bool
+	flagSrc        string
+	flagDest       string
+	flagDryRun     bool
+	flagWorkers    int
+	flagVerbose    bool
+	flagNoVideos   bool
+	flagNoSidecars bool
 )
 
 func newRootCmd() *cobra.Command {
@@ -30,6 +31,7 @@ and support a dry-run mode for safe previews.`,
 	root.PersistentFlags().IntVarP(&flagWorkers, "workers", "w", 4, "Number of concurrent workers")
 	root.PersistentFlags().BoolVarP(&flagVerbose, "verbose", "v", false, "Enable debug logging")
 	root.PersistentFlags().BoolVar(&flagNoVideos, "no-videos", false, "Leave video files (.mp4, .mov, ...) in place")
+	root.PersistentFlags().BoolVar(&flagNoSidecars, "no-sidecars", false, "Don't carry .xmp/.aae/Live Photo .mov files along with their photo")
 
 	root.AddCommand(newMoveCmd())
 	root.AddCommand(newCopyCmd())
