@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Faster duplicate checks: same-size files are compared byte-for-byte and
+  stop at the first difference instead of being SHA-256 hashed in full
+  (~5× faster for identical files, far faster when they differ early), and
+  discovery uses `filepath.WalkDir`, saving a `stat` per file (#23).
+
 ### Added
 - Videos (`.mp4`, `.mov`, `.m4v`, `.3gp`) are organized alongside photos,
   dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs

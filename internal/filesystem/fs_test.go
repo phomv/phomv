@@ -322,3 +322,44 @@ func TestReserveExact(t *testing.T) {
 		t.Error("ReserveExact must not fall back to a suffixed name")
 	}
 }
+
+func TestSameContent(t *testing.T) {
+	big := make([]byte, 3*compareChunk)
+	for i := range big {
+		big[i] = byte(i * 7)
+	}
+	flip := func(i int) []byte {
+		b := append([]byte(nil), big...)
+		b[i] ^= 0xFF
+		return b
+	}
+	cases := []struct {
+		name string
+		a, b []byte
+		want bool
+	}{
+		{"both empty", nil, nil, true},
+		{"identical small", []byte("same"), []byte("same"), true},
+		{"identical, exact chunk multiple", big, big, true},
+		{"identical, partial last chunk", big[:2*compareChunk+5], big[:2*compareChunk+5], true},
+		{"differ in first byte", big, flip(0), false},
+		{"differ at chunk boundary", big, flip(compareChunk), false},
+		{"differ in last byte", big, flip(len(big) - 1), false},
+		{"different sizes", big, big[:len(big)-1], false},
+	}
+	dir := t.TempDir()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a, b := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+			writeFile(t, a, string(tc.a))
+			writeFile(t, b, string(tc.b))
+			got, err := sameContent(a, b)
+			if err != nil || got != tc.want {
+				t.Fatalf("sameContent = %v, %v; want %v", got, err, tc.want)
+			}
+		})
+	}
+	if _, err := sameContent(filepath.Join(dir, "a"), filepath.Join(dir, "gone")); !os.IsNotExist(err) {
+		t.Errorf("missing file: err = %v, want not-exist", err)
+	}
+}
