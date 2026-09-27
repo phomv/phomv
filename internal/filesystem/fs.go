@@ -37,13 +37,18 @@ func (o Operation) String() string {
 // If the existing file at desired, or at any suffixed variant tried before a
 // free one is found, is byte-identical to src, ResolveCollision returns
 // ("", true, nil) to signal the caller can skip the operation.
-func ResolveCollision(src, desired string) (string, bool, error) {
-	return resolveCollision(src, desired, nil)
+//
+// Pass the same claims to every call in a run so that a file racing an
+// identical one still in flight is recognized as its duplicate; nil disables
+// that tracking.
+func ResolveCollision(src, desired string, claims *Claims) (string, bool, error) {
+	return resolveCollision(src, desired, claims, false)
 }
 
-// Claims records the destination paths a dry run has handed out, standing in
-// for the empty files a real run creates to reserve them. Safe for concurrent
-// use; the zero value is ready.
+// Claims records which source each destination path was handed out to during
+// a run. A real run reserves paths on disk and records them here; a dry run
+// records them here instead of reserving. Safe for concurrent use; the zero
+// value is ready.
 type Claims struct {
 	mu     sync.Mutex
 	byPath map[string]string // destination -> src that claimed it
@@ -68,14 +73,30 @@ func (c *Claims) claim(src, p string) (bool, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return false, err
 	}
+	c.setLocked(src, p)
+	return true, nil
+}
+
+// reserve creates p on disk for src and records the claim under one lock, so
+// no caller can find the empty reservation without also finding its claimant.
+func (c *Claims) reserve(src, p string) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ok, err := reserveOnDisk(p)
+	if ok {
+		c.setLocked(src, p)
+	}
+	return ok, err
+}
+
+func (c *Claims) setLocked(src, p string) {
 	if c.byPath == nil {
 		c.byPath = map[string]string{}
 	}
 	c.byPath[c.key(p)] = src
-	return true, nil
 }
 
-// claimant returns the src that claimed p in this dry run, if any.
+// claimant returns the src that claimed p in this run, if any.
 func (c *Claims) claimant(p string) (string, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -87,55 +108,42 @@ func (c *Claims) claimant(p string) (string, bool) {
 // writes nothing, but records its picks in claims so that later calls in the
 // same run see them as taken, mirroring the real run's on-disk reservations.
 func ResolveCollisionReadOnly(src, desired string, claims *Claims) (string, bool, error) {
-	return resolveCollision(src, desired, claims)
+	return resolveCollision(src, desired, claims, true)
 }
 
-// resolveCollision reserves on disk when claims is nil, otherwise in claims.
-func resolveCollision(src, desired string, claims *Claims) (string, bool, error) {
+// resolveCollision reserves in claims for a dry run, otherwise on disk
+// (recording the reservation in claims when non-nil).
+func resolveCollision(src, desired string, claims *Claims, dryRun bool) (string, bool, error) {
 	checkPath := func(p string) (bool, error) {
-		if claims != nil {
+		switch {
+		case dryRun:
 			return claims.claim(src, p)
+		case claims != nil:
+			return claims.reserve(src, p)
+		default:
+			return reserveOnDisk(p)
 		}
-
-		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
-		if err != nil {
-			if os.IsExist(err) || errors.Is(err, os.ErrExist) {
-				return false, nil
-			}
-			if errors.Is(err, os.ErrNotExist) {
-				if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-					return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
-				}
-				f, err = os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
-				if err != nil {
-					if os.IsExist(err) || errors.Is(err, os.ErrExist) {
-						return false, nil
-					}
-					return false, err
-				}
-			} else {
-				return false, err
-			}
-		}
-		f.Close()
-		return true, nil
 	}
 
 	// A taken path may already hold src's bytes, so re-running an import
-	// skips files that landed on a suffixed name last time. In a dry run, a
-	// path claimed earlier in the run holds the claimant's bytes in the real
-	// run, so compare against that file instead.
+	// skips files that landed on a suffixed name last time. A path claimed
+	// earlier in this run may still be an empty reservation (or, in a dry
+	// run, never written), so compare against its claimant instead.
 	isDuplicate := func(p string) (bool, error) {
-		existing := p
 		if claims != nil {
 			if claimant, ok := claims.claimant(p); ok {
-				existing = claimant
+				same, err := sameContent(src, claimant)
+				if !errors.Is(err, os.ErrNotExist) {
+					return same, err
+				}
+				// A move consumed the claimant; p now holds its bytes.
 			}
 		}
-		if _, err := os.Stat(existing); errors.Is(err, os.ErrNotExist) {
+		same, err := sameContent(src, p)
+		if errors.Is(err, os.ErrNotExist) {
 			return false, nil // removed since we checked; nothing to compare
 		}
-		return sameContent(src, existing)
+		return same, err
 	}
 
 	ext := filepath.Ext(desired)
@@ -161,6 +169,33 @@ func resolveCollision(src, desired string, claims *Claims) (string, bool, error)
 		}
 	}
 	return "", false, fmt.Errorf("could not resolve collision for %s", desired)
+}
+
+// reserveOnDisk atomically creates an empty file at p (and its parent dirs),
+// reporting false if p already exists.
+func reserveOnDisk(p string) (bool, error) {
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
+	if err != nil {
+		if os.IsExist(err) || errors.Is(err, os.ErrExist) {
+			return false, nil
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				return false, fmt.Errorf("mkdir %s: %w", filepath.Dir(p), err)
+			}
+			f, err = os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o666)
+			if err != nil {
+				if os.IsExist(err) || errors.Is(err, os.ErrExist) {
+					return false, nil
+				}
+				return false, err
+			}
+		} else {
+			return false, err
+		}
+	}
+	f.Close()
+	return true, nil
 }
 
 // Apply executes op (copy or move) from src to dst, creating parent dirs.

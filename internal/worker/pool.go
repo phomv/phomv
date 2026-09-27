@@ -177,7 +177,7 @@ func process(cfg Config, claims *filesystem.Claims, job Job) Result {
 		return res
 	}
 
-	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst)
+	finalDst, skip, err := filesystem.ResolveCollision(job.Path, dst, claims)
 	if err != nil {
 		res.Status = StatusFailed
 		res.Err = err
