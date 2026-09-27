@@ -216,3 +216,48 @@ func TestResolveCollisionReadOnlyHonorsClaims(t *testing.T) {
 		t.Fatalf("dry run wrote to disk: %v", err)
 	}
 }
+
+func TestResolveCollisionSkipsDuplicateOfSuffixedVariant(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "IMG_001.jpg")
+	dst := filepath.Join(dir, "out", "IMG_001.jpg")
+	writeFile(t, src, "incoming")
+	writeFile(t, dst, "different")
+	writeFile(t, filepath.Join(dir, "out", "IMG_001_1.jpg"), "also-different")
+	writeFile(t, filepath.Join(dir, "out", "IMG_001_2.jpg"), "incoming")
+
+	for name, resolve := range map[string]func() (string, bool, error){
+		"real":    func() (string, bool, error) { return ResolveCollision(src, dst) },
+		"dry-run": func() (string, bool, error) { return ResolveCollisionReadOnly(src, dst, &Claims{}) },
+	} {
+		got, skip, err := resolve()
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !skip {
+			t.Fatalf("%s: expected skip as duplicate of IMG_001_2.jpg; got %q", name, got)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "out", "IMG_001_3.jpg")); !os.IsNotExist(err) {
+		t.Fatal("no new variant should have been reserved")
+	}
+}
+
+func TestResolveCollisionReadOnlyDuplicateOfClaimedVariant(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "out", "IMG_0001.jpg")
+	writeFile(t, dst, "on-disk")
+	a := filepath.Join(dir, "x", "IMG_0001.jpg")
+	b := filepath.Join(dir, "y", "IMG_0001.jpg")
+	writeFile(t, a, "first")
+	writeFile(t, b, "first") // same bytes as a, which claims _1
+	claims := &Claims{}
+
+	got, skip, err := ResolveCollisionReadOnly(a, dst, claims)
+	if want := filepath.Join(dir, "out", "IMG_0001_1.jpg"); err != nil || skip || got != want {
+		t.Fatalf("a: got %q skip=%v err=%v, want %q", got, skip, err, want)
+	}
+	if got, skip, err := ResolveCollisionReadOnly(b, dst, claims); err != nil || !skip {
+		t.Fatalf("b: got %q skip=%v err=%v, want skip as duplicate of a", got, skip, err)
+	}
+}

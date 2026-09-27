@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Re-running an import no longer piles up identical copies: a file that
+  already exists at a `_1`, `_2`, … variant of its destination is now skipped
+  as a duplicate, not written again under the next free suffix (#17).
+
 ## [0.1.2] - 2026-09-23
 
 ### Fixed
