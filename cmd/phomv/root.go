@@ -40,5 +40,6 @@ and support a dry-run mode for safe previews.`,
 	root.AddCommand(newMoveCmd())
 	root.AddCommand(newCopyCmd())
 	root.AddCommand(newVersionCmd())
+	root.AddCommand(newManCmd())
 	return root
 }

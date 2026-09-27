@@ -1,5 +1,7 @@
 /bin/
 /dist/
+/completions/
+/manpages/
 *.test
 *.out
 .DS_Store

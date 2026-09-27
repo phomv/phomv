@@ -9,7 +9,7 @@ LDFLAGS := -s -w \
 	-X main.commit=$(COMMIT) \
 	-X main.date=$(DATE)
 
-.PHONY: all build test vet fmt clean install \
+.PHONY: all build test vet fmt clean install docs \
 	build-linux build-darwin build-darwin-arm64 build-windows release
 
 all: build
@@ -29,8 +29,11 @@ vet:
 fmt:
 	gofmt -s -w .
 
+docs:
+	sh scripts/gen-docs.sh
+
 clean:
-	rm -rf bin dist
+	rm -rf bin dist completions manpages
 
 build-linux:
 	GOOS=linux  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64       $(PKG)

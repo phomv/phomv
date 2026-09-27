@@ -3,6 +3,7 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - sh scripts/gen-docs.sh
 
 builds:
   - main: ./cmd/phomv
@@ -33,6 +34,8 @@ archives:
       - LICENSE
       - README.md
       - CHANGELOG.md
+      - completions/*
+      - manpages/*
 
 checksum:
   name_template: "checksums.txt"
@@ -49,6 +52,10 @@ brews:
     license: "MIT"
     install: |
       bin.install "phomv"
+      bash_completion.install "completions/phomv.bash" => "phomv"
+      zsh_completion.install "completions/phomv.zsh" => "_phomv"
+      fish_completion.install "completions/phomv.fish"
+      man1.install Dir["manpages/*.1"]
     test: |
       system "#{bin}/phomv", "version"
 

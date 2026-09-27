@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--include-hidden` opts back in; `-x/--exclude <glob>` (repeatable) adds
   your own skips. Skipped folders are logged at debug level and counted as
   `excluded_dirs` (#22).
+- Shell completions (bash, zsh, fish, PowerShell) and man pages ship in the
+  release archives and are installed by Homebrew; `make docs` generates
+  them locally (#24).
 - Videos (`.mp4`, `.mov`, `.m4v`, `.3gp`) are organized alongside photos,
   dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs
   report their time source as `quicktime`. `--no-videos` leaves them in

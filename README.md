@@ -68,6 +68,18 @@ make release     # cross-compiles to ./dist for linux/macOS/windows
 
 Requires Go 1.24+.
 
+### Shell completions and man pages
+
+Homebrew installs both automatically. Otherwise, release archives ship them
+in `completions/` and `manpages/`, or generate completions yourself:
+
+```sh
+phomv completion bash > /etc/bash_completion.d/phomv       # bash
+phomv completion zsh > "${fpath[1]}/_phomv"                # zsh
+phomv completion fish > ~/.config/fish/completions/phomv.fish
+phomv completion powershell | Out-String | Invoke-Expression  # PowerShell
+```
+
 ## Usage
 
 ```sh
