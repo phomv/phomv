@@ -21,6 +21,7 @@ const (
 	SourceUnknown TimeSource = iota
 	SourceEXIF
 	SourceMTime
+	SourceQuickTime
 )
 
 func (s TimeSource) String() string {
@@ -29,6 +30,8 @@ func (s TimeSource) String() string {
 		return "exif"
 	case SourceMTime:
 		return "mtime"
+	case SourceQuickTime:
+		return "quicktime"
 	default:
 		return "unknown"
 	}
@@ -41,9 +44,14 @@ type PhotoTime struct {
 }
 
 // ExtractTime returns the best available timestamp for a file.
-// Priority: EXIF DateTimeOriginal -> file mtime.
+// Priority: EXIF DateTimeOriginal (photos) or QuickTime mvhd creation time
+// (videos) -> file mtime.
 func ExtractTime(path string) (PhotoTime, error) {
-	if t, err := readEXIFTime(path); err == nil {
+	if IsVideo(path) {
+		if t, err := readQuickTimeTime(path); err == nil {
+			return PhotoTime{When: t, Source: SourceQuickTime}, nil
+		}
+	} else if t, err := readEXIFTime(path); err == nil {
 		return PhotoTime{When: t, Source: SourceEXIF}, nil
 	}
 

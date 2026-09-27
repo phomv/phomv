@@ -5,19 +5,21 @@ import (
 )
 
 var (
-	flagSrc     string
-	flagDest    string
-	flagDryRun  bool
-	flagWorkers int
-	flagVerbose bool
+	flagSrc      string
+	flagDest     string
+	flagDryRun   bool
+	flagWorkers  int
+	flagVerbose  bool
+	flagNoVideos bool
 )
 
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "phomv",
 		Short: "Organize photo libraries by EXIF date",
-		Long: `phomv organizes photos into a YYYY/YYYY_MM/YYYY_MM_DD hierarchy based
-on EXIF metadata, with file mtime as a fallback. Operations run concurrently
+		Long: `phomv organizes photos and videos into a YYYY/YYYY_MM/YYYY_MM_DD
+hierarchy based on EXIF (photos) or QuickTime (videos) metadata, with file
+mtime as a fallback. Operations run concurrently
 and support a dry-run mode for safe previews.`,
 		SilenceUsage: true,
 	}
@@ -27,6 +29,7 @@ and support a dry-run mode for safe previews.`,
 	root.PersistentFlags().BoolVarP(&flagDryRun, "dry-run", "n", false, "Simulate execution without modifying disk")
 	root.PersistentFlags().IntVarP(&flagWorkers, "workers", "w", 4, "Number of concurrent workers")
 	root.PersistentFlags().BoolVarP(&flagVerbose, "verbose", "v", false, "Enable debug logging")
+	root.PersistentFlags().BoolVar(&flagNoVideos, "no-videos", false, "Leave video files (.mp4, .mov, ...) in place")
 
 	root.AddCommand(newMoveCmd())
 	root.AddCommand(newCopyCmd())

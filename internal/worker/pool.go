@@ -52,6 +52,7 @@ type Config struct {
 	Operation   filesystem.Operation
 	Workers     int
 	DryRun      bool
+	SkipVideos  bool // leave video files in place
 }
 
 // Stats reports counters after Run completes.
@@ -92,7 +93,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 			if info.IsDir() {
 				return nil
 			}
-			if !processor.IsSupported(path) {
+			if !processor.IsSupported(path) || (cfg.SkipVideos && processor.IsVideo(path)) {
 				return nil
 			}
 			atomic.AddUint64(&stats.Discovered, 1)

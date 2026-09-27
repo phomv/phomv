@@ -321,3 +321,31 @@ func TestRunRerunSkipsFileStoredUnderSuffix(t *testing.T) {
 		t.Fatalf("want a.jpg and a_1.jpg after two runs, got %v", entries)
 	}
 }
+
+func TestRunSkipVideos(t *testing.T) {
+	src := t.TempDir()
+	when := time.Date(2023, 3, 15, 12, 0, 0, 0, time.Local)
+	for _, name := range []string{"a.jpg", "b.mp4", "c.MOV"} {
+		p := filepath.Join(src, name)
+		if err := os.WriteFile(p, []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		skip bool
+		want uint64
+	}{{false, 3}, {true, 1}} {
+		results, stats := Run(context.Background(), Config{
+			Source: src, Destination: t.TempDir(),
+			Operation: filesystem.OpCopy, Workers: 2, DryRun: true, SkipVideos: tc.skip,
+		})
+		for range results {
+		}
+		if stats.Discovered != tc.want {
+			t.Errorf("SkipVideos=%v: discovered %d, want %d", tc.skip, stats.Discovered, tc.want)
+		}
+	}
+}

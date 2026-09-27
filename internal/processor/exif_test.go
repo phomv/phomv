@@ -81,7 +81,7 @@ func TestExtractTimeMissingFile(t *testing.T) {
 
 func TestTimeSourceString(t *testing.T) {
 	for src, want := range map[TimeSource]string{
-		SourceEXIF: "exif", SourceMTime: "mtime", SourceUnknown: "unknown",
+		SourceEXIF: "exif", SourceMTime: "mtime", SourceQuickTime: "quicktime", SourceUnknown: "unknown",
 	} {
 		if got := src.String(); got != want {
 			t.Errorf("%d.String() = %q, want %q", src, got, want)
