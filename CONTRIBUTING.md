@@ -33,11 +33,8 @@ Keep PRs focused — one logical change per PR makes review faster.
 
 ## Good first issues
 
-The following packages currently have no test coverage and are good places to start:
-
-- `internal/processor/exif.go` — EXIF timestamp extraction
-- `cmd/phomv/run.go` — CLI run command
-- `cmd/phomv/root.go` — CLI root command
+Look for issues labelled
+[`good first issue`](https://github.com/phomv/phomv/labels/good%20first%20issue).
 
 ## Reporting security issues
 
