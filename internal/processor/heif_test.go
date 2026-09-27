@@ -7,39 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/phomv/phomv/internal/testutil"
 )
-
-// tiffWithDateTimeOriginal builds a little-endian TIFF stream whose Exif
-// sub-IFD holds a single DateTimeOriginal tag.
-func tiffWithDateTimeOriginal(ts string) []byte {
-	le := binary.LittleEndian
-	var b bytes.Buffer
-	b.WriteString("II")
-	binary.Write(&b, le, uint16(42))
-	binary.Write(&b, le, uint32(8)) // IFD0 offset
-
-	// IFD0 at 8: one entry pointing at the Exif IFD (ends at 26).
-	binary.Write(&b, le, uint16(1))
-	ifdEntry(&b, 0x8769, 4, 1, 26)
-	binary.Write(&b, le, uint32(0))
-
-	// Exif IFD at 26: DateTimeOriginal, ASCII, value at 44.
-	binary.Write(&b, le, uint16(1))
-	ifdEntry(&b, 0x9003, 2, uint32(len(ts)+1), 44)
-	binary.Write(&b, le, uint32(0))
-
-	b.WriteString(ts)
-	b.WriteByte(0)
-	return b.Bytes()
-}
-
-func ifdEntry(b *bytes.Buffer, tag, typ uint16, count, value uint32) {
-	le := binary.LittleEndian
-	binary.Write(b, le, tag)
-	binary.Write(b, le, typ)
-	binary.Write(b, le, count)
-	binary.Write(b, le, value)
-}
 
 func box(typ string, body ...[]byte) []byte {
 	payload := bytes.Join(body, nil)
@@ -89,7 +59,7 @@ func buildHEIC(t *testing.T, exifItem []byte, ilocVersion byte) []byte {
 
 func TestExtractTimeHEIC(t *testing.T) {
 	const ts = "2023:04:05 06:07:08"
-	tiff := tiffWithDateTimeOriginal(ts)
+	tiff := testutil.TIFFWithDateTimeOriginal(ts)
 	want := time.Date(2023, 4, 5, 6, 7, 8, 0, time.Local)
 
 	cases := []struct {
@@ -145,7 +115,7 @@ func TestHeifEXIFRejectsNonHEIF(t *testing.T) {
 }
 
 func TestHeifEXIFTruncatedMetaDoesNotPanic(t *testing.T) {
-	full := buildHEIC(t, append(be32(0), tiffWithDateTimeOriginal("2023:04:05 06:07:08")...), 1)
+	full := buildHEIC(t, append(be32(0), testutil.TIFFWithDateTimeOriginal("2023:04:05 06:07:08")...), 1)
 	for n := 0; n < len(full); n++ {
 		heifEXIF(bytes.NewReader(full[:n]))
 	}
