@@ -121,7 +121,7 @@ func TestRunSidecarsDryRun(t *testing.T) {
 			continue
 		}
 		rel, _ := filepath.Rel(dst, r.Dst)
-		if filepath.Dir(filepath.ToSlash(rel))+"/" != sidecarDay {
+		if filepath.ToSlash(filepath.Dir(rel))+"/" != sidecarDay {
 			t.Errorf("%s planned at %s, want in %s", r.Src, rel, sidecarDay)
 		}
 	}
