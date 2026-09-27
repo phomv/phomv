@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Faster duplicate checks: same-size files are compared byte-for-byte and
-  stop at the first difference instead of being SHA-256 hashed in full
-  (~5× faster for identical files, far faster when they differ early), and
-  discovery uses `filepath.WalkDir`, saving a `stat` per file (#23).
-
 ### Added
+- Discovery skips hidden files/folders, NAS and OS clutter (`@eaDir`,
+  `#recycle`, `@Recycle`, `@Recently-Snapshot`, `$RECYCLE.BIN`,
+  `System Volume Information`, `lost+found`) and macOS `._*` files by
+  default, so thumbnails no longer end up in the library.
+  `--include-hidden` opts back in; `-x/--exclude <glob>` (repeatable) adds
+  your own skips. Skipped folders are logged at debug level and counted as
+  `excluded_dirs` (#22).
 - Videos (`.mp4`, `.mov`, `.m4v`, `.3gp`) are organized alongside photos,
   dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs
   report their time source as `quicktime`. `--no-videos` leaves them in
@@ -23,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   photo and take its collision suffix (`IMG_1234_1.HEIC` → `IMG_1234_1.mov`).
   A different file already at a sidecar's target is reported as a failure,
   never overwritten. `--no-sidecars` turns pairing off (#20).
+
+### Changed
+- Faster duplicate checks: same-size files are compared byte-for-byte and
+  stop at the first difference instead of being SHA-256 hashed in full
+  (~5× faster for identical files, far faster when they differ early), and
+  discovery uses `filepath.WalkDir`, saving a `stat` per file (#23).
 
 ### Fixed
 - Re-running an import no longer piles up identical copies: a file that

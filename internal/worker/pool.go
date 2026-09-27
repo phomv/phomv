@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -35,6 +36,9 @@ const (
 	// StatusWalkError marks a path discovery could not read (permissions,
 	// I/O error); its subtree, if any, was not scanned.
 	StatusWalkError
+	// StatusExcludedDir marks a directory discovery skipped (hidden, system,
+	// or matched by --exclude); Reason says why.
+	StatusExcludedDir
 )
 
 // Result is the outcome of processing one Job.
@@ -47,6 +51,8 @@ type Result struct {
 	Err    error
 	// SidecarOf is the photo this file travels with, if it is a sidecar.
 	SidecarOf string
+	// Reason explains a StatusExcludedDir: "hidden", "system" or "excluded".
+	Reason string
 }
 
 // Config controls a Run invocation.
@@ -57,6 +63,12 @@ type Config struct {
 	Workers     int
 	DryRun      bool
 	SkipVideos  bool // leave video files in place
+	// IncludeHidden scans dot-files, dot-directories and system/NAS
+	// folders (@eaDir, $RECYCLE.BIN, ...), which are skipped by default.
+	IncludeHidden bool
+	// Exclude holds globs matched against each name and its path relative
+	// to Source; matches are skipped. Check them with ValidateExcludes.
+	Exclude []string
 	// SkipSidecars stops pairing .xmp/.aae/Live Photo .mov files with their
 	// photo; paired .mov files are then treated as ordinary videos.
 	SkipSidecars bool
@@ -71,6 +83,8 @@ type Stats struct {
 	Sidecars   uint64
 	Failed     uint64
 	WalkErrors uint64
+	// ExcludedDirs counts directories skipped without being scanned.
+	ExcludedDirs uint64
 }
 
 // Run executes the pipeline. Results are emitted on the returned channel and
@@ -90,6 +104,7 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 		defer close(jobs)
 		sidecarsOf := map[string][]processor.Sidecar{} // photo path -> sidecars
 		isSidecar := map[string]bool{}
+		filt := filter{includeHidden: cfg.IncludeHidden, exclude: cfg.Exclude}
 		_ = filepath.WalkDir(cfg.Source, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				atomic.AddUint64(&stats.WalkErrors, 1)
@@ -100,9 +115,23 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 				}
 				return nil
 			}
+			rel, _ := filepath.Rel(cfg.Source, path)
+			rel = filepath.ToSlash(rel)
+			if skip, why := filt.skip(rel, d.IsDir()); skip {
+				if !d.IsDir() {
+					return nil
+				}
+				atomic.AddUint64(&stats.ExcludedDirs, 1)
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case results <- Result{Src: path, Status: StatusExcludedDir, DryRun: cfg.DryRun, Reason: why}:
+				}
+				return filepath.SkipDir
+			}
 			if d.IsDir() {
 				if !cfg.SkipSidecars {
-					indexSidecars(path, sidecarsOf, isSidecar)
+					indexSidecars(path, rel, filt, sidecarsOf, isSidecar)
 				}
 				return nil
 			}
@@ -166,16 +195,17 @@ func Run(ctx context.Context, cfg Config) (<-chan Result, *Stats) {
 	return results, stats
 }
 
-// indexSidecars records which files in dir are sidecars of which photos.
-// Errors are left for the walk itself to report.
-func indexSidecars(dir string, sidecarsOf map[string][]processor.Sidecar, isSidecar map[string]bool) {
+// indexSidecars records which files in dir (at rel under the source) are
+// sidecars of which photos, ignoring files the filter skips. Errors are left
+// for the walk itself to report.
+func indexSidecars(dir, rel string, filt filter, sidecarsOf map[string][]processor.Sidecar, isSidecar map[string]bool) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
 	var names []string
 	for _, e := range entries {
-		if !e.IsDir() {
+		if skip, _ := filt.skip(path.Join(rel, e.Name()), false); !e.IsDir() && !skip {
 			names = append(names, e.Name())
 		}
 	}
