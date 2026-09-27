@@ -46,6 +46,9 @@ func runOp(op filesystem.Operation) error {
 	if err := filesystem.CheckOverlap(flagSrc, flagDest); err != nil {
 		return err
 	}
+	if err := worker.ValidateExcludes(flagExclude); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(flagDest, 0o755); err != nil {
 		return fmt.Errorf("create destination: %w", err)
 	}
@@ -63,13 +66,15 @@ func runOp(op filesystem.Operation) error {
 	}()
 
 	cfg := worker.Config{
-		Source:       flagSrc,
-		Destination:  flagDest,
-		Operation:    op,
-		Workers:      flagWorkers,
-		DryRun:       flagDryRun,
-		SkipVideos:   flagNoVideos,
-		SkipSidecars: flagNoSidecars,
+		Source:        flagSrc,
+		Destination:   flagDest,
+		Operation:     op,
+		Workers:       flagWorkers,
+		DryRun:        flagDryRun,
+		SkipVideos:    flagNoVideos,
+		SkipSidecars:  flagNoSidecars,
+		IncludeHidden: flagIncludeHidden,
+		Exclude:       flagExclude,
 	}
 
 	log.Info().
@@ -80,6 +85,8 @@ func runOp(op filesystem.Operation) error {
 		Bool("dry_run", cfg.DryRun).
 		Bool("videos", !cfg.SkipVideos).
 		Bool("sidecars", !cfg.SkipSidecars).
+		Bool("include_hidden", cfg.IncludeHidden).
+		Strs("exclude", cfg.Exclude).
 		Msg("starting")
 
 	results, stats := worker.Run(ctx, cfg)
@@ -95,6 +102,7 @@ func runOp(op filesystem.Operation) error {
 		Uint64("sidecars", stats.Sidecars).
 		Uint64("failed", stats.Failed).
 		Uint64("walk_errors", stats.WalkErrors).
+		Uint64("excluded_dirs", stats.ExcludedDirs).
 		Msg("done")
 
 	var errs []error
@@ -118,6 +126,10 @@ func configureLogging() {
 }
 
 func logResult(r worker.Result) {
+	if r.Status == worker.StatusExcludedDir {
+		log.Debug().Str("path", r.Src).Str("reason", r.Reason).Msg("skipped directory")
+		return
+	}
 	if r.Status == worker.StatusWalkError {
 		log.Warn().Err(r.Err).Str("path", r.Src).Msg("unreadable, not scanned")
 		return

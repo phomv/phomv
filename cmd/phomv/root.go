@@ -5,13 +5,15 @@ import (
 )
 
 var (
-	flagSrc        string
-	flagDest       string
-	flagDryRun     bool
-	flagWorkers    int
-	flagVerbose    bool
-	flagNoVideos   bool
-	flagNoSidecars bool
+	flagSrc           string
+	flagDest          string
+	flagDryRun        bool
+	flagWorkers       int
+	flagVerbose       bool
+	flagNoVideos      bool
+	flagNoSidecars    bool
+	flagIncludeHidden bool
+	flagExclude       []string
 )
 
 func newRootCmd() *cobra.Command {
@@ -32,6 +34,8 @@ and support a dry-run mode for safe previews.`,
 	root.PersistentFlags().BoolVarP(&flagVerbose, "verbose", "v", false, "Enable debug logging")
 	root.PersistentFlags().BoolVar(&flagNoVideos, "no-videos", false, "Leave video files (.mp4, .mov, ...) in place")
 	root.PersistentFlags().BoolVar(&flagNoSidecars, "no-sidecars", false, "Don't carry .xmp/.aae/Live Photo .mov files along with their photo")
+	root.PersistentFlags().BoolVar(&flagIncludeHidden, "include-hidden", false, "Also scan dot-files/-folders and system folders (@eaDir, $RECYCLE.BIN, ...)")
+	root.PersistentFlags().StringArrayVarP(&flagExclude, "exclude", "x", nil, "Skip files/folders whose name or path under --src matches this glob (repeatable)")
 
 	root.AddCommand(newMoveCmd())
 	root.AddCommand(newCopyCmd())

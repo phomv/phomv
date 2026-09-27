@@ -26,6 +26,10 @@ core engine can later back a Wails or Fyne GUI.
   (Lightroom, darktable's `IMG_1.CR2.xmp`), Apple `.aae` edits, and a Live
   Photo's `.mov`.
 - Dry-run mode that logs every planned action without touching disk.
+- Skips thumbnail/system clutter by default: dot-folders and dot-files,
+  NAS and OS folders (`@eaDir`, `#recycle`, `@Recycle`, `$RECYCLE.BIN`,
+  `System Volume Information`, `lost+found`), and macOS `._*` metadata
+  files. Add your own skips with `--exclude`.
 - Files with unreadable timestamps go to an `Unknown/` bucket instead of
   crashing the run.
 - Structured logging via zerolog.
@@ -76,6 +80,9 @@ phomv copy -s ~/Pictures/import -d ~/Pictures/library -w 8
 # Move and clean up empty source dirs
 phomv move -s /mnt/sdcard -d ~/Pictures/library
 
+# Skip screenshots and one folder of raws
+phomv copy -s /mnt/sdcard -d ~/Pictures/library -x Screenshots -x '2019/raw'
+
 # Version
 phomv version
 ```
@@ -90,6 +97,8 @@ phomv version
 | `-w, --workers`   | `4`     | Number of concurrent workers                   |
 | `-v, --verbose`   | `false` | Enable debug logging                           |
 | `--no-videos`     | `false` | Leave video files in place (Live Photo `.mov`s still follow their photo) |
+| `-x, --exclude`   | -       | Skip files/folders whose name, or path under `--src`, matches this glob (repeatable) |
+| `--include-hidden`| `false` | Also scan dot-files/folders and system/NAS folders (`._*` files are always skipped) |
 | `--no-sidecars`   | `false` | Don't carry `.xmp`/`.aae`/Live Photo `.mov` with their photo |
 
 ## Project layout

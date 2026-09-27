@@ -58,6 +58,7 @@ func TestRunFlagValidation(t *testing.T) {
 		{"src is a file", []string{"copy", "-s", file, "-d", dest}, "is not a directory"},
 		{"dest inside src", []string{"copy", "-s", src, "-d", filepath.Join(src, "out")}, "is inside source"},
 		{"unknown command", []string{"frobnicate"}, "unknown command"},
+		{"bad exclude glob", []string{"copy", "-s", src, "-d", dest, "--exclude", "[abc"}, "bad --exclude pattern"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -128,7 +129,7 @@ func TestRootRegistersCommandsAndFlags(t *testing.T) {
 		}
 	}
 	for flag, short := range map[string]string{
-		"src": "s", "dest": "d", "dry-run": "n", "workers": "w", "verbose": "v", "no-videos": "", "no-sidecars": "",
+		"src": "s", "dest": "d", "dry-run": "n", "workers": "w", "verbose": "v", "no-videos": "", "no-sidecars": "", "include-hidden": "", "exclude": "x",
 	} {
 		f := root.PersistentFlags().Lookup(flag)
 		if f == nil || f.Shorthand != short {
