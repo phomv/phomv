@@ -34,8 +34,9 @@ func (o Operation) String() string {
 // It atomically creates an empty file at the destination path to prevent
 // Time-of-Check to Time-of-Use (TOCTOU) race conditions.
 //
-// If the existing file at desired is byte-identical to src, ResolveCollision
-// returns ("", true, nil) to signal the caller can skip the operation.
+// If the existing file at desired, or at any suffixed variant tried before a
+// free one is found, is byte-identical to src, ResolveCollision returns
+// ("", true, nil) to signal the caller can skip the operation.
 func ResolveCollision(src, desired string) (string, bool, error) {
 	return resolveCollision(src, desired, nil)
 }
@@ -120,40 +121,43 @@ func resolveCollision(src, desired string, claims *Claims) (string, bool, error)
 		return true, nil
 	}
 
-	available, err := checkPath(desired)
-	if err != nil {
-		return "", false, err
-	}
-	if available {
-		return desired, false, nil
-	}
-
-	// In a dry run, a path claimed earlier in the run holds the claimant's
-	// bytes in the real run, so compare against that file instead.
-	existing := desired
-	if claims != nil {
-		if claimant, ok := claims.claimant(desired); ok {
-			existing = claimant
+	// A taken path may already hold src's bytes, so re-running an import
+	// skips files that landed on a suffixed name last time. In a dry run, a
+	// path claimed earlier in the run holds the claimant's bytes in the real
+	// run, so compare against that file instead.
+	isDuplicate := func(p string) (bool, error) {
+		existing := p
+		if claims != nil {
+			if claimant, ok := claims.claimant(p); ok {
+				existing = claimant
+			}
 		}
-	}
-	same, err := sameContent(src, existing)
-	if err != nil {
-		return "", false, err
-	}
-	if same {
-		return "", true, nil
+		if _, err := os.Stat(existing); errors.Is(err, os.ErrNotExist) {
+			return false, nil // removed since we checked; nothing to compare
+		}
+		return sameContent(src, existing)
 	}
 
 	ext := filepath.Ext(desired)
 	stem := strings.TrimSuffix(desired, ext)
-	for i := 1; i < 10000; i++ {
-		candidate := fmt.Sprintf("%s_%d%s", stem, i, ext)
+	for i := 0; i < 10000; i++ {
+		candidate := desired
+		if i > 0 {
+			candidate = fmt.Sprintf("%s_%d%s", stem, i, ext)
+		}
 		available, err := checkPath(candidate)
 		if err != nil {
 			return "", false, err
 		}
 		if available {
 			return candidate, false, nil
+		}
+		same, err := isDuplicate(candidate)
+		if err != nil {
+			return "", false, err
+		}
+		if same {
+			return "", true, nil
 		}
 	}
 	return "", false, fmt.Errorf("could not resolve collision for %s", desired)

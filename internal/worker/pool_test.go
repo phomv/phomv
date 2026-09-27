@@ -283,3 +283,41 @@ func TestRunDryRunMatchesRealRun(t *testing.T) {
 		t.Fatalf("stats differ: dry=%+v real=%+v", dry, real)
 	}
 }
+
+func TestRunRerunSkipsFileStoredUnderSuffix(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	when := time.Date(2022, 1, 2, 12, 0, 0, 0, time.Local)
+	day := filepath.Join(dst, "2022", "2022_01", "2022_01_02")
+	if err := os.MkdirAll(day, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A different photo already owns the base name.
+	if err := os.WriteFile(filepath.Join(day, "a.jpg"), []byte("other"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(src, "a.jpg")
+	if err := os.WriteFile(p, []byte("payload"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(p, when, when); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := Config{Source: src, Destination: dst, Operation: filesystem.OpCopy, Workers: 1}
+	for i := 0; i < 2; i++ {
+		results, _ := Run(context.Background(), cfg)
+		for r := range results {
+			if r.Err != nil {
+				t.Fatal(r.Err)
+			}
+		}
+	}
+	entries, err := os.ReadDir(day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("want a.jpg and a_1.jpg after two runs, got %v", entries)
+	}
+}
