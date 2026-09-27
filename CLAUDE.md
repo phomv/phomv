@@ -24,7 +24,8 @@ The CLI (`cmd/phomv/`) is a thin Cobra shell. All business logic lives in `inter
 
 ```
 internal/
-  processor/   — timestamp extraction (EXIF > mtime fallback) + destination path formatting
+  processor/   — timestamp extraction (EXIF for photos / QuickTime mvhd for videos > mtime fallback)
+                 + destination path formatting
   worker/      — concurrent pipeline: filepath.Walk → jobs channel → fixed worker pool → Results channel
   filesystem/  — file I/O primitives: copy (via temp+rename), move (rename with cross-device fallback),
                  SHA-256 idempotency check, collision suffix resolution, empty-dir cleanup

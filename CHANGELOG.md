@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Videos (`.mp4`, `.mov`, `.m4v`, `.3gp`) are organized alongside photos,
+  dated from the QuickTime/MP4 `mvhd` creation time with mtime fallback. Logs
+  report their time source as `quicktime`. `--no-videos` leaves them in
+  place (#19).
+
 ### Fixed
 - Re-running an import no longer piles up identical copies: a file that
   already exists at a `_1`, `_2`, … variant of its destination is now skipped

@@ -68,6 +68,7 @@ func runOp(op filesystem.Operation) error {
 		Operation:   op,
 		Workers:     flagWorkers,
 		DryRun:      flagDryRun,
+		SkipVideos:  flagNoVideos,
 	}
 
 	log.Info().
@@ -76,6 +77,7 @@ func runOp(op filesystem.Operation) error {
 		Str("dest", cfg.Destination).
 		Int("workers", cfg.Workers).
 		Bool("dry_run", cfg.DryRun).
+		Bool("videos", !cfg.SkipVideos).
 		Msg("starting")
 
 	results, stats := worker.Run(ctx, cfg)

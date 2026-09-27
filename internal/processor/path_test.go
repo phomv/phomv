@@ -31,12 +31,26 @@ func TestIsSupported(t *testing.T) {
 		"c.HEIC":       true,
 		"d.cr2":        true,
 		"notes.txt":    false,
-		"video.mp4":    false,
+		"video.mp4":    true,
+		"clip.MOV":     true,
+		"old.avi":      false,
 		"no-extension": false,
 	}
 	for name, want := range cases {
 		if got := IsSupported(name); got != want {
 			t.Errorf("IsSupported(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestIsVideo(t *testing.T) {
+	cases := map[string]bool{
+		"a.mp4": true, "b.MOV": true, "c.m4v": true, "d.3gp": true,
+		"e.jpg": false, "f.heic": false,
+	}
+	for name, want := range cases {
+		if got := IsVideo(name); got != want {
+			t.Errorf("IsVideo(%q) = %v, want %v", name, got, want)
 		}
 	}
 }

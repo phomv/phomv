@@ -14,8 +14,10 @@ core engine can later back a Wails or Fyne GUI.
 ## Features
 
 - Recursive scan of common photo formats (`.jpg`, `.jpeg`, `.png`, `.heic`,
-  `.cr2`, `.nef`, `.arw`, `.dng`, `.tif`, `.tiff`).
-- EXIF `DateTimeOriginal` extraction with file-mtime fallback.
+  `.cr2`, `.nef`, `.arw`, `.dng`, `.tif`, `.tiff`) and videos (`.mp4`, `.mov`,
+  `.m4v`, `.3gp`).
+- EXIF `DateTimeOriginal` (photos) or QuickTime `mvhd` creation time (videos),
+  with file-mtime fallback.
 - Concurrent worker pool (configurable, default 4 workers).
 - Atomic-ish copy via temp files + rename; cross-device move fallback.
 - Idempotent: identical files are skipped via SHA-256 content compare.
@@ -84,6 +86,7 @@ phomv version
 | `-n, --dry-run`   | `false` | Simulate execution without touching disk       |
 | `-w, --workers`   | `4`     | Number of concurrent workers                   |
 | `-v, --verbose`   | `false` | Enable debug logging                           |
+| `--no-videos`     | `false` | Leave video files in place                     |
 
 ## Project layout
 
